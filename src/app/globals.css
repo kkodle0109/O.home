@@ -1737,7 +1737,7 @@ body.edit-on .main-grid.gridlines .wgt{outline-offset:0}
 @keyframes upSpin{to{transform:rotate(360deg)}}
 
 body {
-  background-image: url('Black Laptop Wallpaper 4K Aesthetic PC Desktop Background.jpg'); /* public 폴더에 올린 이미지 파일명 */
+  background-image: url('/Black Laptop Wallpaper 4K Aesthetic PC Desktop Background.jpg'); /* public 폴더에 올린 이미지 파일명 */
   background-size: cover;          /* 화면에 딱 맞게 이미지를 채움 */
   background-position: center;      /* 이미지를 중앙에 정렬 */
   background-repeat: no-repeat;    /* 이미지 반복 방지 */
