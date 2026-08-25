@@ -1754,7 +1754,7 @@ body::before {
   background-position: center;
   background-repeat: no-repeat;
   
-  filter: blur(8px);       /* 블러 강도 (숫자가 커질수록 더 흐려짐) */
+  filter: blur(4px);       /* 블러 강도 (숫자가 커질수록 더 흐려짐) */
   transform: scale(1.05);  /* 블러 처리 시 테두리 흰색 왜곡 방지 */
   z-index: -1;             /* 화면 맨 뒤로 배치 */
 }
