@@ -7,7 +7,7 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useLocalList } from '@/lib/postStore';
-import { Character, CHAR_SEED, charGrant, charWithAu, Relation, REL_SEED } from '@/lib/charStore';
+import { Character, CHAR_SEED, charGrant, charWithAu, chipBorder, Relation, REL_SEED } from '@/lib/charStore';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { useFonts } from '@/lib/fontStore';
 import { useTheme } from '@/lib/ThemeProvider';
@@ -159,7 +159,7 @@ function CharDetailInner() {
             <small>원본</small>
           </div>
           {charAus.map(a => {
-            const av = charWithAu(ch, a.key);   // AU 저장분 반영된 썸네일 (없으면 base)
+            const av = charWithAu(ch, a.key);   // 이 AU에 넣은 썸네일 (안 넣었으면 색 플레이스홀더, v2.0)
             return (
               <div key={a.key} className={`au-item ${auKey === a.key ? 'on' : ''} ph ${ch.thumbClass}`}
                 style={{ borderColor: auKey === a.key ? 'var(--accent)' : 'var(--line)' }}
@@ -268,7 +268,10 @@ function CharDetailInner() {
                           const tip = eff.colorTipMode === 'label' ? (c.label || c.hex.toUpperCase())
                             : eff.colorTipMode === 'both' ? (c.label ? `${c.label} · ${c.hex.toUpperCase()}` : c.hex.toUpperCase())
                             : c.hex.toUpperCase();
-                          return <span key={c.hex + c.label} className="sw-static" data-hex={tip} style={{ background: c.hex }} />;
+                          return (
+                            <span key={c.hex + c.label} className="sw-static" data-hex={tip}
+                              style={{ background: c.hex, boxShadow: chipBorder(eff.colorBd) }} />
+                          );
                         })}
                       </span>
                     </dd>

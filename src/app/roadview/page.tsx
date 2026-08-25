@@ -1,8 +1,12 @@
 'use client';
 // 그림게시판 로드뷰 (4.10) — 목록 없이 최신순 즉시 표시 · 좌 그림/우 댓글 · 즉시 업로드 · 접기
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useLocalList, newId, fmtDate, Comment } from '@/lib/postStore';
+import { useSectionParam, filterSection, sectionSetter } from '@/lib/sectionStore';
+import {
+  useLocalList, newId, fmtDate, Comment,
+  CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
+} from '@/lib/postStore';
 import { RoadItem, ROAD_SEED } from '@/lib/galleryStore';
 import { SearchBar, KInput } from '@/components/ui/Kit';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
@@ -18,8 +22,9 @@ import { fileDrop } from '@/lib/dnd';
 const PAGE_SIZE = 4;
 const FOLD_LABEL = { spoiler: '스포일러', adult: '수위 주의' };
 
-function RoadBlock({ item, onComment, onEditComment, onDeleteComment, canComment, guestMode, editLevel, delLevel, canEditItem, canDeleteItem, onEdit, onDelete }: {
+function RoadBlock({ item, comments, onComment, onEditComment, onDeleteComment, canComment, guestMode, editLevel, delLevel, canEditItem, canDeleteItem, onEdit, onDelete }: {
   item: RoadItem;
+  comments: Comment[];                                  // 이 그림의 댓글 — 분리 저장분 + 옛 항목 안의 것 (v2.0)
   onComment: (id: string, text: string, guest?: { name: string; pw: string }) => void;
   onEditComment: (id: string, cid: string, text: string) => void;
   onDeleteComment: (id: string, cid: string) => void;
@@ -112,7 +117,7 @@ function RoadBlock({ item, onComment, onEditComment, onDeleteComment, canComment
       </div>
       <div className="cmt-side">
         <div className="list">
-          {item.comments.map(c => (
+          {comments.map(c => (
             <div className="cmt" key={c.id}>
               <b>{c.author}</b><small>{fmtDate(c.date)}</small>
               {editCid !== c.id && (
@@ -140,7 +145,7 @@ function RoadBlock({ item, onComment, onEditComment, onDeleteComment, canComment
               )}
             </div>
           ))}
-          {item.comments.length === 0 && <p className="hint">첫 댓글을 남겨보세요</p>}
+          {comments.length === 0 && <p className="hint">첫 댓글을 남겨보세요</p>}
         </div>
         {/* 게스트 작성(방문자 허용) — 구분선 아래 GUEST 바 + 입력줄 세로 배치 */}
         <div className={`cmt-input ${guestMode && canComment ? 'guest' : ''}`}>
@@ -171,14 +176,22 @@ function RoadBlock({ item, onComment, onEditComment, onDeleteComment, canComment
   );
 }
 
-export default function RoadviewPage() {
+function RoadviewPageInner() {
   const { user, isAdmin } = useAuth();
   const toast = useToast();
   // 업로드·댓글 권한 3단계 (4.10 v1.7 — 환경설정 > 메뉴 관리의 로드뷰 항목).
   // 방문자(비로그인) 실사용은 Supabase 익명 처리 시 — mock 단계에선 로그인 전제
   const [menuSet] = useMenuSettings();
   const allow = (p: MenuPerm) => (p === 'admin' ? isAdmin : p === 'member' ? !!user : true);
-  const [items, setItems, roadLoaded] = useLocalList<RoadItem>('ohome.road.v1', ROAD_SEED);
+  const [itemsAll, setItemsAll, roadLoaded] = useLocalList<RoadItem>('ohome.road.v1', ROAD_SEED);
+  // 여러 개로 만든 섹션 (v2.0) — 주소의 ?s= 가 가리키는 것만 보여 준다
+  const sec = useSectionParam('roadview');
+  const items = filterSection(itemsAll, sec.id);
+  // 저장은 이 섹션 자리만 교체 — 걸러진 목록을 그대로 넘겨도 다른 섹션이 지워지지 않는다
+  const setItems = sectionSetter(itemsAll, sec.id, setItemsAll);
+  // 댓글은 항목과 따로 저장한다 (v2.0) — 항목 안에 두면 댓글을 달 때 항목을 UPDATE 해야 해서
+  // 일반 회원이 남의 그림에 댓글을 달 수 없었다 (게시판과 같은 원인)
+  const [cmtRows, setCmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
   const [q, setQ] = useState('');
   const [shown, setShown] = useState(PAGE_SIZE);
 
@@ -218,10 +231,11 @@ export default function RoadviewPage() {
 
   const addComment = (id: string, text: string, guest?: { name: string; pw: string }) => {
     // 게스트 댓글 (방문자 권한, v1.9) — 닉네임+비밀번호, authorId는 빈 값
-    const c: Comment = guest
-      ? { id: newId(), author: guest.name, authorId: '', guestPw: guest.pw, text, date: new Date().toISOString() }
-      : { id: newId(), author: user!.nickname, authorId: user!.id, text, date: new Date().toISOString() };
-    setItems(items.map(it => it.id === id ? { ...it, comments: [...it.comments, c] } : it));
+    const base = { id: newId(), text, date: new Date().toISOString(), target: 'road' as const, targetId: id };
+    const c: CommentRow = guest
+      ? { ...base, author: guest.name, authorId: '', guestPw: guest.pw }
+      : { ...base, author: user!.nickname, authorId: user!.id };
+    setCmtRows([...cmtRows, c]);
     // 알림 (4.13) — 그림 작성자에게 (본인 댓글 제외)
     const target = items.find(it => it.id === id);
     if (target && target.authorId && target.authorId !== (user?.id ?? '')) {
@@ -234,10 +248,15 @@ export default function RoadviewPage() {
   };
 
   // 댓글 수정·삭제 (v1.9) — 관리자·본인은 바로, 게스트 댓글은 비밀번호 확인(RoadBlock)
-  const editComment = (id: string, cid: string, text: string) =>
-    setItems(items.map(it => it.id === id ? { ...it, comments: it.comments.map(c => c.id === cid ? { ...c, text } : c) } : it));
-  const deleteComment = (id: string, cid: string) =>
-    setItems(items.map(it => it.id === id ? { ...it, comments: it.comments.filter(c => c.id !== cid) } : it));
+  // 분리 저장분과 옛 항목 안의 댓글을 모두 다룬다 (v2.0)
+  const editComment = (id: string, cid: string, text: string) => {
+    if (cmtRows.some(c => c.id === cid)) setCmtRows(cmtRows.map(c => (c.id === cid ? { ...c, text } : c)));
+    else setItems(items.map(it => it.id === id ? { ...it, comments: it.comments.map(c => c.id === cid ? { ...c, text } : c) } : it));
+  };
+  const deleteComment = (id: string, cid: string) => {
+    if (cmtRows.some(c => c.id === cid)) setCmtRows(cmtRows.filter(c => c.id !== cid));
+    else setItems(items.map(it => it.id === id ? { ...it, comments: it.comments.filter(c => c.id !== cid) } : it));
+  };
   // 수정은 작성자 본인만(게스트는 비밀번호 확인) — 관리자도 타인 댓글은 삭제만 (v1.9 사용자 확정)
   const editLevel = (c: Comment): 'free' | 'pw' | null => {
     if (user && c.authorId === user.id) return 'free';
@@ -254,7 +273,7 @@ export default function RoadviewPage() {
   return (
     <section className="page">
       <div className="page-head">
-        <PageTitle>LOAD-B</PageTitle>
+        <PageTitle>{sec.id === 'main' ? 'LOAD-B' : sec.name}</PageTitle>
         <EditableDesc k="roadview-desc" def="그림이 좋아서 모았습니다" />
         <div className="head-actions">
           {allow(menuSet.roadUpload) && !!user && (
@@ -270,7 +289,7 @@ export default function RoadviewPage() {
       </div>
 
       {visible.slice(0, shown).map(it => (
-        <RoadBlock key={it.id} item={it} onComment={addComment}
+        <RoadBlock key={it.id} item={it} comments={commentsFor(cmtRows, 'road', it.id, it.comments)} onComment={addComment}
           onEditComment={editComment} onDeleteComment={deleteComment}
           canComment={allow(menuSet.roadComment) && (!!user || menuSet.roadComment === 'guest')}
           guestMode={!user && menuSet.roadComment === 'guest'}
@@ -317,9 +336,20 @@ export default function RoadviewPage() {
         body={`${padNo(delFor?.no)} — 삭제한 그림과 댓글은 복구할 수 없습니다.`}
         onClose={() => setDelFor(null)}
         buttons={[
-          { label: 'DELETE', kind: 'accent', onClick: () => { setItems(items.filter(x => x.id !== delFor!.id)); setDelFor(null); } },
+          { label: 'DELETE', kind: 'accent', onClick: () => {
+            const gone = delFor!.id;
+            setItems(items.filter(x => x.id !== gone));
+            // 그림에 딸린 댓글도 함께 (v2.0 — 따로 저장이라 남겨 두면 주인 없는 줄이 된다)
+            setCmtRows(cmtRows.filter(c => !(c.target === 'road' && c.targetId === gone)));
+            setDelFor(null);
+          } },
           { label: 'CANCEL', kind: 'ghost', onClick: () => setDelFor(null) },
         ]} />
     </section>
   );
+}
+
+/** ?s= 를 읽으므로 Suspense 경계가 필요하다 (Next App Router) */
+export default function RoadviewPage() {
+  return <Suspense fallback={<section className="page" />}><RoadviewPageInner /></Suspense>;
 }

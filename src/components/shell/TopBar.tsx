@@ -4,8 +4,9 @@
 // 편집모드 중 페이지 이동 시도 → 종료 확인 모달 (v1.8)
 import React, { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useMenuSettings, buildMenu } from '@/lib/menuStore';
+import { boardEntries, useMenuSettings, buildMenu } from '@/lib/menuStore';
 import { useBoards } from '@/lib/boardStore';
+import { useSections, sectionMenuEntries } from '@/lib/sectionStore';
 import { useSiteSettings } from '@/lib/siteStore';
 import { useAuth } from '@/lib/auth';
 import { useMainStore } from '@/lib/mainStore';
@@ -15,7 +16,7 @@ import { useToast } from '@/components/ui/Toast';
 import { KToggle } from '@/components/ui/Kit';
 import {
   Notif, NotifType, NOTIF_EVENT, NOTIF_TYPE_LABEL,
-  readNotifs, markRead, markAllRead, notifSettings, setNotifSetting,
+  readNotifs, markRead, markAllRead, clearReadNotifs, notifSettings, setNotifSetting,
 } from '@/lib/notifStore';
 
 const BellIcon = () => (
@@ -35,9 +36,12 @@ export function TopBar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [menuSet, , menuLoaded] = useMenuSettings(); // 메뉴 관리 (5.2) — 노출·순서·이름
   const { boards, loaded: boardsLoaded } = useBoards(); // 다중 게시판 (5.2) — 게시판 그룹에 동적 반영
+  const { map: secMap } = useSections();                 // 여러 개로 만든 섹션 (v2.0) — 갤러리·다이어리 등
   // 저장 설정 로드 전에는 메뉴·로고를 그리지 않음 — 새로고침 시 기본 구성이 깜빡이는 것 방지 (v1.9)
   const ready = menuLoaded && boardsLoaded;
-  const menu = ready ? buildMenu(menuSet, boards, { loggedIn: !!user, isAdmin }) : [];
+  const menu = ready
+    ? buildMenu(menuSet, [...boardEntries(boards), ...sectionMenuEntries(secMap)], { loggedIn: !!user, isAdmin })
+    : [];
   const [site, , siteLoaded] = useSiteSettings();    // 로고 텍스트/서브/정렬 (5.2)
   const avatarSrc = useBlobUrl(user?.avatarUrl);     // 프로필 이미지 (마이페이지, v1.9)
   const userRef = useRef<HTMLDivElement>(null);
@@ -226,6 +230,10 @@ export function TopBar() {
               <b>알림</b>
               {unread.length > 0 && (
                 <button className="all" onClick={() => markAllRead(user.id)}>모두 읽음</button>
+              )}
+              {/* 읽은 알림은 하루 뒤 저절로 사라지지만, 바로 치우고 싶을 때 (v2.0 사용자 요청) */}
+              {myNotifs.some(n => n.read) && (
+                <button className="all" onClick={() => clearReadNotifs(user.id)}>읽은 알림 정리</button>
               )}
             </div>
             {myNotifs.length === 0 && <p className="empty">알림이 없습니다</p>}

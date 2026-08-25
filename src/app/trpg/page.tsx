@@ -1,13 +1,14 @@
 'use client';
 // TRPG 로그 백업 (4.3) — 티켓형/기본형 스킨 · 우측 자관 뱃지 필터 · ＋ ADD LOG
 // 본문 입력 3방식: 파일 업로드(.txt/.html 내용 자동 판별) / HTML 붙여넣기 / 직접 작성
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { useSectionParam, filterSection, sectionSetter } from '@/lib/sectionStore';
 import { useLocalList, newId } from '@/lib/postStore';
 import { TrpgLog, TRPG_SEED, TrpgLogBody, TRPG_BODY_SEED, bodyVisibility, decodeLogText, logNo, saveLogBody } from '@/lib/galleryStore';
 import { Relation, REL_SEED } from '@/lib/charStore';
-import { SearchBar, KInput, KTextarea, KRadio, KSelect, KDate } from '@/components/ui/Kit';
+import { SearchBar, KInput, KTextarea, KRadio, KSelect, KDate, Pager } from '@/components/ui/Kit';
 import { Modal } from '@/components/ui/Modal';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 import { putBlob } from '@/lib/blobStore';
@@ -19,13 +20,19 @@ import { useSiteSettings } from '@/lib/siteStore';
 import { useMainStore } from '@/lib/mainStore';
 import { mergeOrder } from '@/lib/cardSort';
 import { DragList } from '@/components/ui/DragList';
+import { OrderMenu, orderNoOf, moveToOrder } from '@/components/ui/OrderMenu';
 
-export default function TrpgPage() {
+function TrpgPageInner() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
   const toast = useToast();
   const [site] = useSiteSettings(); // 티켓 하단 문구 = 로고 서브타이틀 (5.2 연동)
-  const [logs, setLogs] = useLocalList<TrpgLog>('ohome.trpg.v1', TRPG_SEED);
+  const [logsAll, setLogsAll] = useLocalList<TrpgLog>('ohome.trpg.v1', TRPG_SEED);
+  // 여러 개로 만든 섹션 (v2.0) — 주소의 ?s= 가 가리키는 것만 보여 준다
+  const sec = useSectionParam('trpg');
+  const logs = filterSection(logsAll, sec.id);
+  // 저장은 이 섹션 자리만 교체 — 걸러진 목록을 그대로 넘겨도 다른 섹션이 지워지지 않는다
+  const setLogs = sectionSetter(logsAll, sec.id, setLogsAll);
   // 본문은 목록과 분리 저장 (v2.0) — 나만보기 로그도 목록엔 뜨게 하려고 목록 문서의 질의 조건이
   // listHidden으로 느슨해졌는데, 본문까지 같이 있으면 그 질의로 본문도 함께 새어 나간다
   const [bodies, setBodies] = useLocalList<TrpgLogBody>('ohome.trpgbody.v1', TRPG_BODY_SEED);
@@ -101,6 +108,43 @@ export default function TrpgPage() {
   const [gridPreview, setGridPreview] = useState<TrpgLog[] | null>(null);
   const gridFromRef = useRef<number | null>(null);
   const basicShown = gridPreview ?? visible;
+
+  /* ---------- 페이지 나누기 (v2.0 사용자 요청) ----------
+     티켓형은 한 장이 커서 6개, 기본형은 한 줄에 둘씩 들어가 20개까지 봐도 답답하지 않다.
+     드래그 정렬은 `visible` 전체 기준 위치로 다루므로(아래 reorderPage·gridDragProps)
+     2페이지에서 순서를 바꿔도 그 항목들이 맨 앞으로 끌려오지 않는다. */
+  const ticketView = skin === 'ticket' && !isMobile;
+  const PER_LOG = ticketView ? 6 : 20;
+  const [logPage, setLogPage] = useState(1);
+  const logPages = Math.max(1, Math.ceil(visible.length / PER_LOG));
+  const logCur = Math.min(logPage, logPages);        // 필터로 줄어 페이지가 사라지면 마지막으로 당긴다
+  const logStart = (logCur - 1) * PER_LOG;
+  // 필터·검색·보기 방식을 바꾸면 1페이지부터
+  useEffect(() => { setLogPage(1); }, [filter, q, ticketView]);
+  const pageLogs = visible.slice(logStart, logStart + PER_LOG);
+
+  /** 이 페이지 안에서 바뀐 순서를 전체 순서에 되꽂는다 —
+   *  보이는 것만 넘기면 mergeOrder가 그 묶음을 맨 앞으로 올려 버린다 */
+  const reorderPage = (nextPage: TrpgLog[]) => {
+    const nextVisible = [...visible];
+    nextVisible.splice(logStart, nextPage.length, ...nextPage);
+    setLogs(mergeOrder(logs, nextVisible));
+  };
+
+  /* ---------- 번호로 자리 옮기기 (v2.0 사용자 요청) ----------
+     페이지가 생기면 1페이지 것을 3페이지로 드래그할 수가 없다 — 우클릭해서 번호를 적어 옮긴다.
+     번호는 저장하지 않고 자리에서 만든다(10, 20, 30 …). 드래그로 배치를 바꾸면 번호도 저절로 맞는다. */
+  const [ordFor, setOrdFor] = useState<{ id: string; x: number; y: number } | null>(null);
+  const ordIdx = ordFor ? visible.findIndex(l => l.id === ordFor.id) : -1;
+  const openOrder = (e: React.MouseEvent, id: string) => {
+    if (!isAdmin) return;
+    e.preventDefault();
+    setOrdFor({ id, x: e.clientX, y: e.clientY });
+  };
+  const applyOrder = (wanted: number) => {
+    if (ordIdx >= 0) setLogs(mergeOrder(logs, moveToOrder(visible, ordIdx, wanted)));
+    setOrdFor(null);
+  };
   const gridDragProps = (i: number): React.HTMLAttributes<HTMLDivElement> => {
     if (!gridSort) return {};
     return {
@@ -188,6 +232,7 @@ export default function TrpgPage() {
   // sp: 편집모드 드래그 정렬 props (다른 목록과 같은 방식, v2.0)
   const Ticket = ({ l }: { l: TrpgLog }) => (
     <div className="ticket"
+      onContextMenu={e => openOrder(e, l.id)}
       onClick={() => { if (!editOn) router.push(`/trpg/${l.id}`); }}>
       <div className="stub-line" />
       <div className={`wide ${!l.thumbId && !l.thumbColor ? `ph ${l.ph}` : ''}`} style={thumbStyle(l)}>
@@ -219,7 +264,7 @@ export default function TrpgPage() {
   return (
     <section className="page">
       <div className="page-head">
-        <PageTitle>TRPG LOG</PageTitle>
+        <PageTitle>{sec.id === 'main' ? 'TRPG LOG' : sec.name}</PageTitle>
         <EditableDesc k="trpg-desc" def="티켓형 스킨 · 시나리오 타이틀 폰트 개별 설정 · 우측 자관 뱃지로 필터" />
         <div className="head-actions">
           <SearchBar onSearch={setQ} />
@@ -228,11 +273,11 @@ export default function TrpgPage() {
       </div>
       <div className="trpg-layout">
         <div>
-          {skin === 'ticket' && !isMobile
+          {ticketView
             ? (
               // 다른 목록형 페이지와 같은 DragList — 손잡이를 들어 부드럽게 밀어내고 놓으면 안착 (v2.0)
-              <DragList items={visible} keyOf={l => l.id}
-                onReorder={next => setLogs(mergeOrder(logs, next))}
+              <DragList items={pageLogs} keyOf={l => l.id}
+                onReorder={reorderPage}
                 disabled={!(editOn && isAdmin)}
                 render={l => <Ticket l={l} />} />
             )
@@ -241,8 +286,10 @@ export default function TrpgPage() {
               // DragList는 세로 한 줄 목록 전제라 2열 그리드엔 못 쓴다 — 자리 미리보기는 그대로 두고
               // 저장은 손을 뗄 때 한 번만 하도록 이 페이지에서 직접 구현 (gridDragProps, 위 참조)
               <div className="panel flush trpg-basic">
-                {basicShown.map((l, i) => (
-                  <div key={l.id} className="list-item" {...gridDragProps(i)}
+                {basicShown.slice(logStart, logStart + PER_LOG).map((l, i) => (
+                  // 드래그 위치는 전체 기준으로 넘긴다 — 페이지 안 위치로 넘기면 2페이지에서 어긋난다
+                  <div key={l.id} className="list-item" {...gridDragProps(logStart + i)}
+                    onContextMenu={e => openOrder(e, l.id)}
                     onClick={() => { if (!editOn) router.push(`/trpg/${l.id}`); }}>
                     {editOn && <span className="drag-h">⠿</span>}
                     <div className={`th ${!l.thumbId && !l.thumbColor ? `ph ${l.ph}` : ''}`} style={{ ...thumbStyle(l), position: 'relative' }}>
@@ -260,10 +307,23 @@ export default function TrpgPage() {
                 ))}
               </div>
             )}
+          {/* 페이저는 가운데, 개수는 오른쪽 끝 (v2.0 — 자관 질문 목록과 같은 방식) */}
+          {visible.length > PER_LOG && (
+            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
+              <span />
+              <Pager page={logCur} total={logPages} onChange={setLogPage} />
+              <small style={{ color: 'var(--faint)', fontSize: 10.5, justifySelf: 'end' }}>총 {visible.length}개</small>
+            </div>
+          )}
           {visible.length === 0 && (
             <div className="panel" style={{ textAlign: 'center', padding: 44, fontSize: 13, color: 'var(--faint)' }}>
               로그가 없습니다
             </div>
+          )}
+          {/* 우클릭 > 순서 번호 (v2.0 사용자 요청) */}
+          {ordFor && ordIdx >= 0 && (
+            <OrderMenu at={ordFor} current={orderNoOf(ordIdx)} total={visible.length}
+              onApply={applyOrder} onClose={() => setOrdFor(null)} />
           )}
         </div>
         {/* 자관 연동 필터 (v1.2) */}
@@ -413,4 +473,9 @@ export default function TrpgPage() {
       )}
     </section>
   );
+}
+
+/** ?s= 를 읽으므로 Suspense 경계가 필요하다 (Next App Router) */
+export default function TrpgPage() {
+  return <Suspense fallback={<section className="page" />}><TrpgPageInner /></Suspense>;
 }
