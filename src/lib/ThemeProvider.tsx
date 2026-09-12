@@ -105,9 +105,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // 로드 전에는 건드리지 않음 — 첫 페인트의 인라인 FOUC 맵을 기본 다크로 덮어써 깜빡이는 것 방지 (v1.9)
   useEffect(() => {
     if (!loaded) return;
+    /* 캐릭터·자관 테마컬러는 색만 바꾸는 것 — 파생 팔레트가 ThemeVars를 통째로 새로 만들어
+       **표시 옵션까지 기본값으로 리셋**되던 것을 사이트 설정에서 이어받는다 (v2.0 사용자 제보 —
+       「헤더 설명을 껐는데 커스텀 테마 캐릭터 상세에서만 다시 보인다」) */
+    const site = draft.perMode[draft.mode];
     applyToDom(pageColor
-      ? derivePointTheme(pageColor.color, pageColor.tone ?? draft.pointTone)
-      : draft.perMode[draft.mode]);
+      ? {
+        ...derivePointTheme(pageColor.color, pageColor.tone ?? draft.pointTone),
+        pageHead: site.pageHead, pageHeadM: site.pageHeadM,
+      }
+      : site);
     // 페이지 배경 지정 (v2.0) — 팔레트를 적용한 뒤에 배경 세 값만 덮어쓴다.
     // 이 effect가 팔레트를 다시 칠하므로 순서상 여기서 덮어야 남는다.
     const root = document.documentElement;
@@ -125,9 +132,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const vars = draft.perMode[draft.mode];
     const root = document.documentElement;
     if (vars.bgType === 'image' && vars.bgImageId && !pageColor && !pageBg) {
+      const ref = vars.bgImageId;
+      /* **주소면 그대로 쓴다** (v2.0 사용자 발견 — 「배경에 사진을 올렸는데 안 바뀐다」).
+         서버 모드에서는 올린 이미지가 저장소의 공개 주소로 저장되는데, 여기서만 그것을
+         `getBlob`으로 **다시 내려받아** blob 주소로 바꾸고 있었다. 그 fetch는 저장소의
+         CORS 설정에 걸리면 조용히 실패한다 — 화면 어디에도 오류가 안 뜨고 배경만 안 바뀐다.
+         다른 이미지들은 전부 주소를 그대로 쓰므로(useBlobUrl) 잘 나왔다. 여기만 예외였다. */
+      if (/^(https?:|data:|blob:)/.test(ref)) {
+        root.style.setProperty('--bg-image', `url("${ref}")`);
+        return () => { root.style.removeProperty('--bg-image'); };
+      }
+      // 브라우저 저장(IndexedDB) 파일 id — 그때만 풀어서 blob 주소를 만든다
       let cancelled = false;
       let url: string | null = null;
-      getBlob(vars.bgImageId).then(b => {
+      getBlob(ref).then(b => {
         if (cancelled || !b) return;
         url = URL.createObjectURL(b);
         root.style.setProperty('--bg-image', `url("${url}")`);

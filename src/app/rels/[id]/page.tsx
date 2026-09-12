@@ -10,9 +10,10 @@ import { useTheme } from '@/lib/ThemeProvider';
 import { useLocalList, newId } from '@/lib/postStore';
 import {
   Relation, REL_SEED, Character, CHAR_SEED, RelMember, QaEntry, QaAnswer, TlItem, findChar, Visibility, CharGrant,
-  auMember, auStyle, fullShadow,
+  auMember, auStyle, fullShadow, hasRelGrant,
   RelAu, RelCpTag, charWithAu, charGrant,
   QaAnswerRow, QA_KEY, QA_SEED, MergedAnswer, answersFor,
+  findByKey, charPath,
 } from '@/lib/charStore';
 import { RelQuestionSet, RELQ_SEED, RELQ_KEY, CP_LABEL } from '@/lib/relqStore';
 import { putBlob } from '@/lib/blobStore';
@@ -20,7 +21,7 @@ import { GrantsEditor } from '@/components/chars/GrantsEditor';
 import { TrpgLog, TRPG_SEED } from '@/lib/galleryStore';
 import { RpRoom, RP_SEED } from '@/lib/rpStore';
 import { useFonts } from '@/lib/fontStore';
-import { Tip, KInput, KTextarea, KSelect, KRadio } from '@/components/ui/Kit';
+import { Tip, KInput, KTextarea, KSelect, KRadio, KCheck } from '@/components/ui/Kit';
 import { Modal, ConfirmModal, useConfirmDelete } from '@/components/ui/Modal';
 import { ColorField } from '@/components/ui/ColorField';
 import { withAlpha } from '@/lib/color';
@@ -148,7 +149,11 @@ function MiniProf({ member, char, isAdmin, onGo, onRemove, auUnregistered, side,
         <div>
           {/* 이름 폰트는 캐릭터 프로필에서 지정한 것을 그대로 쓰고,
               크기는 이 자관에서 정한 값 (자관 수정의 「이름 크기」 — 기본 17px, v2.0) */}
-          <b style={{ fontFamily: familyOf(char.fontId), fontSize: member.nameSize ?? undefined }}>
+          <b style={{
+            fontFamily: familyOf(char.fontId), fontSize: member.nameSize ?? undefined,
+            // 굵기는 끌 수 있다 (v2.0 사용자 요청) — 기본은 지금처럼 굵게(<b>)
+            fontWeight: (member.nameBold ?? true) ? undefined : 400,
+          }}>
             {char.name}
           </b>
           <small>{[char.sub, noteOf(member)].filter(Boolean).join(' · ')}</small>
@@ -164,11 +169,19 @@ function MiniProf({ member, char, isAdmin, onGo, onRemove, auUnregistered, side,
       <div className="palette-row" data-tip="캐릭터 테마색 팔레트">
         {/* `?? `(nullish)로 판단 — 빈 배열은 "색을 다 지웠다"는 뜻이라 그대로 비워야 한다.
             length로 보면 전부 지웠을 때 옛 스냅샷이 되살아난다 (v2.0 사용자 재신고) */}
-        {(char.colors ?? member.palette).map(p => (
-          <Tip key={p.hex + p.label} tip={p.label}>
-            <span className="gem" style={{ background: p.hex }} />
-          </Tip>
-        ))}
+        {/* 색 점 테두리 — 캐릭터의 colorBd 설정을 여기서도 (v2.0 사용자 요청: 카드 배경과
+            구분 안 되는 색이면 자관 상세에서도 테두리가 필요하다). 마름모(clip-path)라
+            box-shadow가 잘리므로, 바깥 마름모를 테두리색으로 깔고 안쪽 마름모에 색을 얹는다 */}
+        {(char.colors ?? member.palette).map(p => {
+          const bd = char.colorBd === 'none' ? null : (char.colorBd ?? 'rgba(0,0,0,.14)');
+          return (
+            <Tip key={p.hex + p.label} tip={p.label}>
+              <span className="gem" style={{ background: bd ?? p.hex }}>
+                {bd && <i style={{ background: p.hex }} />}
+              </span>
+            </Tip>
+          );
+        })}
       </div>
       <div className="kw-row">
         {member.keywords.map(k => <span key={k} className="pill">{k}</span>)}
@@ -260,6 +273,21 @@ export default function RelDetailPage() {
       window.removeEventListener('keydown', key);
     };
   }, [tlCtx]);
+  // 질문 우클릭 메뉴 (v2.0 사용자 요청) — 바로 되돌리지 않고 메뉴를 거쳐 확인 모달로
+  const [qaCtx, setQaCtx] = useState<{ x: number; y: number; no: number } | null>(null);
+  useEffect(() => {
+    if (!qaCtx) return;
+    const close = () => setQaCtx(null);
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setQaCtx(null); };
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('keydown', key);
+    };
+  }, [qaCtx]);
   // 답변 우클릭 메뉴 (v2.0) — 수정·부연·삭제
   const [ansCtx, setAnsCtx] = useState<{ x: number; y: number; idx: number } | null>(null);
   useEffect(() => {
@@ -328,7 +356,8 @@ export default function RelDetailPage() {
   const [auDelAsk, setAuDelAsk] = useState<string | null>(null);  // AU 삭제 확인 (v2.0 — 자관 삭제와 별개)
   const del = useConfirmDelete();                // 멤버·타임라인 등 개별 삭제 확인
 
-  const rel = rels.find(r => r.id === id);
+  // 별명 주소로도 열린다 (v2.0 사용자 요청 — 주소를 나중에 바꿔도 옛 주소가 살아 있게)
+  const rel = findByKey(rels, id);
 
   // 자관별 페이지 테마 (4.18 방식) — 별도 테마컬러면 홈 전체 팔레트를 임시 전환, 벗어나면 원복.
   // AU별 (v1.9): AU에 테마를 지정했으면 그것, 미지정이면 base(원본) 테마 따라가기
@@ -372,6 +401,10 @@ export default function RelDetailPage() {
   // AU별 프로필 데이터 (v1.9) — base(원본)는 Relation 최상위, 그 외 AU는 aus 항목에 저장
   const isBaseAu = (au?.id ?? 'base') === 'base';
   const auArts = (isBaseAu ? rel?.arts : au?.arts) ?? [];
+  // AU별 이름/본문 폰트·전신 앞뒤 (v2.0 사용자 제보 — 분리가 안 되던 것) — 미지정이면 자관 기본
+  const auFont = (isBaseAu ? undefined : au?.fontId) ?? rel?.fontId;
+  const auBodyFont = (isBaseAu ? undefined : au?.bodyFontId) ?? rel?.bodyFontId;
+  const auFullFront = (isBaseAu ? undefined : au?.fullFront) ?? rel?.fullFront;
   const auTimeline = (isBaseAu ? rel?.timeline : au?.timeline) ?? [];
   const auQuestions = (isBaseAu ? rel?.questions : au?.questions) ?? [];
   const curArt = auArts[Math.min(artIdx, Math.max(0, auArts.length - 1))];
@@ -391,6 +424,34 @@ export default function RelDetailPage() {
   const answersOf = (no: number): MergedAnswer[] =>
     answersFor(qaRows, rel?.id ?? '', au?.id ?? 'base', no, auQuestions.find(q => q.no === no)?.answers ?? []);
   const curAnswers = curQa ? answersOf(curQa.no) : [];
+  /* 답변 내용 가리기 (v2.0 사용자 요청) — 질문은 그대로 두고 말풍선 안만 가린다.
+     화면에서 가리는 것일 뿐 완전한 차단이 아니라는 점은 설정 화면에 적어 두었다.
+     관리자와 그 답변을 쓴 본인에게는 늘 보인다 — 자기가 쓴 걸 못 보게 하면 고칠 수도 없다. */
+  /* 답변 영역을 통째로 가릴지 (v2.0 사용자 확정) — 말풍선을 하나씩 가리면 몇 명이 무슨 순서로
+     답했는지가 그대로 드러난다. 아예 「비공개 답변」 한 줄만 보여 준다.
+     **관리자와 이 자관 캐릭터에 권한을 받은 회원은 전부 본다** — 답을 달 수 있는 사람이
+     곧 권한자이므로, 자기 답변을 못 보는 경우는 생기지 않는다. */
+  const qaHidden = !!rel?.qaHide && !isAdmin && !hasRelGrant(rel.members, chars, user?.id);
+
+  /* 새 답변이 달리면 아래로 내려 최신 것을 보여 준다 (v2.0 사용자 요청 — 역극 채팅과 같은 동작).
+     다만 **위로 올려 예전 답변을 읽는 중이면 끌어내리지 않는다** — 읽던 자리를 뺏기면 성가시다.
+     바닥 근처에 있을 때만 따라 내려가고, 질문을 바꾸면 무조건 맨 아래(최신)에서 시작한다. */
+  const ansRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+  const onAnsScroll = () => {
+    const el = ansRef.current;
+    if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
+  useEffect(() => {
+    const el = ansRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;   // 질문을 바꾸거나 탭을 열면 최신 답변부터
+    stickRef.current = true;
+  }, [curQa?.no, tab]);
+  useEffect(() => {
+    const el = ansRef.current;
+    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
+  }, [curAnswers.length]);
   // 전신이 하나도 등록되지 않았으면 전신 모드를 두지 않는다 —
   // 빈 자리에 「○○ 전신」 자리표시자를 세우는 대신 대표 일러스트만 보여 준다 (사용자 확정)
   const fullRefOf = (cid: string) =>
@@ -406,7 +467,11 @@ export default function RelDetailPage() {
   };
   // AU 선택 중 그 캐릭터의 AU 프로필 미등록 여부 + 캐릭터 페이지 링크(au 유지) (v1.9)
   const auUnregOf = (cid: string) => !!auCharKey && !findChar(chars, cid)?.auProfiles?.[auCharKey];
-  const charHref = (cid: string) => (auCharKey ? `/chars/${cid}?au=${encodeURIComponent(auCharKey)}` : `/chars/${cid}`);
+  // 캐릭터 별명 주소 우선 (v2.0) — 없으면 id 그대로
+  const charHref = (cid: string) => {
+    const base = charPath(charOf(cid) ?? { id: cid });
+    return auCharKey ? `${base}?au=${encodeURIComponent(auCharKey)}` : base;
+  };
   const sideOf = (cid: string) => (isDuo && rel?.members[1]?.charId === cid ? 'r' : 'l');
 
   // AU 전환으로 QUESTIONS 섹션이 없는 AU에 오면 타임라인 탭으로 (v1.9)
@@ -691,14 +756,28 @@ export default function RelDetailPage() {
       : [asAu(rel.members[0] ?? null), asAu(rel.members[1] ?? null)])
     : [];
 
-  /** 이 멤버를 반대쪽 자리로 (좌 ↔ 우) */
+  /** 이 멤버를 반대쪽 자리로 (좌 ↔ 우).
+   *  오른쪽을 왼쪽으로 옮길 때는 **반대쪽 캐릭터를 오른쪽으로 지정**한다 (v2.0 사용자 제보) —
+   *  예전에는 지정을 지우기만 해서, 등록 순서상 원래 오른쪽이던 캐릭터(보통 두 번째로 넣은
+   *  상대 캐릭터)는 지워도 그대로 오른쪽이라 아무 일도 일어나지 않았다. */
   const moveSide = (cid: string) => {
     const nowRight = pairSlots[1]?.charId === cid;
-    updateRel({ pairRight: nowRight ? undefined : cid });
+    const other = rel.members.find(m => m.charId !== cid)?.charId;
+    updateRel({ pairRight: nowRight ? other : cid });
   };
 
   /** 얼굴칸(1:1) 크롭 다시 잡기 — 캐릭터의 3:4 썸네일과 별개로 이 자관에만 저장 (v2.0) */
   const saveFaceCrop = (cid: string, c: CropValue) => {
+    /* AU를 보는 중이면 **그 AU에만** 저장 (v2.0 사용자 제보 — 원본에서 위치를 바꾸면 AU도
+       같이 바뀌었다). 표시는 auMember가 mset 값을 우선하므로, 정하지 않은 AU는 원본을 따른다 */
+    if (!isBaseAu && au) {
+      updateRel({
+        aus: rel.aus.map(a => (a.id === au.id
+          ? { ...a, mset: { ...a.mset, [cid]: { ...a.mset?.[cid], faceCrop: c } } }
+          : a)),
+      });
+      return;
+    }
     updateRel({ members: rel.members.map(m => (m.charId === cid ? { ...m, faceCrop: c } : m)) });
     setFaceEdit(null);
   };
@@ -821,7 +900,7 @@ export default function RelDetailPage() {
         {/* 이름 그림자 — 색·강도 직접 지정 (v2.0 사용자 요청, 미지정: 검정 60% · 기존과 동일) */}
         {/* 이름 자체는 AU마다 다르게 붙일 수 있다 (v2.0 사용자 요청) — 안 정했으면 자관 이름 그대로 */}
         <h1 style={{
-          fontFamily: familyOf(rel.fontId), color: auSt.nameColor,
+          fontFamily: familyOf(auFont), color: auSt.nameColor,
           textShadow: `0 4px 30px ${withAlpha(auSt.nameShadowColor ?? '#000000', 0.6 * ((auSt.nameShadow ?? 100) / 100))}`,
         }}>{(!isBaseAu && au?.name?.trim()) || rel.name}</h1>
         <div className="catch" style={{ color: auSt.cpColor }}>
@@ -836,7 +915,7 @@ export default function RelDetailPage() {
       </div>
 
       {isDuo ? (
-        <div className="rel-body" style={{ fontFamily: familyOf(rel.bodyFontId) }}>
+        <div className="rel-body" style={{ fontFamily: familyOf(auBodyFont) }}>
           {pairSlots[0]
             ? <MiniProf member={pairSlots[0]} char={charOf(pairSlots[0].charId)} isAdmin={isAdmin}
                 auUnregistered={auUnregOf(pairSlots[0].charId)}
@@ -855,7 +934,7 @@ export default function RelDetailPage() {
               // AU는 자기 전신만 — base 전신을 물려받지 않음 (v1.9 사용자 확정)
               const fullRef = isBaseAu ? m?.fullImgId : au?.fulls?.[cid];
               if (!fullRef) return null;   // 등록 안 된 전신은 자리도 만들지 않는다
-              const front = (rel.fullFront ?? pairSlots[1]?.charId) === cid;
+              const front = (auFullFront ?? pairSlots[1]?.charId) === cid;
               return (
                 <div key={i} className={`fb fb-${i === 0 ? 'l' : 'r'}`}
                   style={{ background: 'transparent', zIndex: front ? 3 : 2 }}>
@@ -910,7 +989,7 @@ export default function RelDetailPage() {
         </div>
       ) : (
         /* 다인 자관 — 프로토타입 multi-body: 좌 멤버 리스트(430px) + 우 그룹 일러 */
-        <div className="multi-body" style={{ fontFamily: familyOf(rel.bodyFontId) }}>
+        <div className="multi-body" style={{ fontFamily: familyOf(auBodyFont) }}>
           <div className="panel flush" style={{ padding: '6px 0' }}>
             {rel.members.map(m => {
               const c = charOf(m.charId);
@@ -983,11 +1062,11 @@ export default function RelDetailPage() {
       )}
 
       {/* 타임라인 / 페어 문답 탭 (v1.8) */}
-      <div className={`panel timeline ${!isDuo ? 'multi' : ''}`} style={{ fontFamily: familyOf(rel.bodyFontId) }}>
+      <div className={`panel timeline ${!isDuo ? 'multi' : ''}`} style={{ fontFamily: familyOf(auBodyFont) }}>
         <div className="rel-tabs">
-          <button className={tab === 'tl' ? 'on' : ''} onClick={() => setTab('tl')}>TIMELINE</button>
+          <button className={tab === 'tl' ? 'on' : ''} onClick={() => setTab('tl')}><span className="lb-pc">TIMELINE</span><span className="lb-m">T</span></button>
           {/* QUESTIONS 섹션은 ＋로 추가해야 생김 (v1.9) — 처음에는 타임라인만 */}
-          {qaOn && <button className={tab === 'qa' ? 'on' : ''} onClick={() => setTab('qa')}>QUESTIONS</button>}
+          {qaOn && <button className={tab === 'qa' ? 'on' : ''} onClick={() => setTab('qa')}><span className="lb-pc">QUESTIONS</span><span className="lb-m">Q</span></button>}
           {isAdmin && !qaOn && (
             <button data-tip="QUESTIONS 섹션 추가" style={{ color: 'var(--faint)', fontSize: 14, padding: '0 6px' }}
               onClick={() => setQsetOpen(true)}>＋</button>
@@ -999,27 +1078,31 @@ export default function RelDetailPage() {
                 <button className={`btn ${tlSort ? 'btn-accent' : 'btn-ghost'}`}
                   style={{ height: 35, padding: '0 14px', fontSize: 11.5 }}
                   onClick={() => setTlSort(v => !v)}>
-                  {tlSort ? '정렬 완료' : '⠿ 정렬'}
+                  <span className="lb-pc">{tlSort ? '정렬 완료' : '⠿ 정렬'}</span>
+                  <span className="lb-m">⠿</span>
                 </button>
               )}
               {tab === 'tl'
-                ? <button className="btn btn-dark" style={{ height: 35, padding: '0 14px', fontSize: 11.5 }} onClick={() => setTlOpen(true)}>＋ ADD RECORD</button>
+                ? <button className="btn btn-dark" style={{ height: 35, padding: '0 14px', fontSize: 11.5 }} data-tip="기록 추가" onClick={() => setTlOpen(true)}><span className="lb-pc">＋ ADD RECORD</span><span className="lb-m">＋</span></button>
                 : <>
-                  <button className="btn btn-ghost" style={{ height: 35, padding: '0 14px', fontSize: 11.5 }} onClick={() => setQsetOpen(true)}>＋ 질문 리스트</button>
+                  <button className="btn btn-ghost" style={{ height: 35, padding: '0 14px', fontSize: 11.5 }} data-tip="질문 리스트 추가" onClick={() => setQsetOpen(true)}><span className="lb-pc">＋ 질문 리스트</span><span className="lb-m">≡</span></button>
                   {/* 되돌리기는 오른쪽 질문 리스트에서 우클릭 (v2.0 사용자 요청) — 여기엔 건너뛰기만 */}
                   {curQa && (
                     <button className="btn btn-ghost" style={{ height: 35, padding: '0 14px', fontSize: 11.5 }}
                       data-tip="이 질문을 아주 버리고 다음 질문으로 — 다시 나오지 않음 (되돌리려면 오른쪽 리스트에서 우클릭)"
-                      onClick={skipQuestion}>질문 건너뛰기</button>
+                      onClick={skipQuestion}><span className="lb-pc">질문 건너뛰기</span><span className="lb-m">⏭</span></button>
                   )}
                   {/* 대기 풀에서 랜덤 출제 (v1.9) — 리스트를 넣어도 자동 출제되지 않으므로(v2.0)
                       아직 받은 질문이 없을 때는 「질문 받기」로 문구를 바꿔 이 버튼이 시작점임을 알린다 */}
                   {auQaPool.length > 0 && (
                     <button className={curQa ? 'btn btn-ghost' : 'btn btn-dark'} style={{ height: 35, padding: '0 14px', fontSize: 11.5 }}
                       data-tip={`대기 질문 ${auQaPool.length}개`}
-                      onClick={drawNextQuestion}>{curQa ? '완료 — 다음 질문' : '질문 받기'}</button>
+                      onClick={drawNextQuestion}>
+                      <span className="lb-pc">{curQa ? '완료 — 다음 질문' : '질문 받기'}</span>
+                      <span className="lb-m">↻</span>
+                    </button>
                   )}
-                  <button className="btn btn-dark" style={{ height: 35, padding: '0 14px', fontSize: 11.5 }} onClick={() => setQOpen(true)}>＋ ADD QUESTION</button>
+                  <button className="btn btn-dark" style={{ height: 35, padding: '0 14px', fontSize: 11.5 }} data-tip="질문 추가" onClick={() => setQOpen(true)}><span className="lb-pc">＋ ADD QUESTION</span><span className="lb-m">＋</span></button>
                 </>}
             </span>
           )}
@@ -1075,6 +1158,8 @@ export default function RelDetailPage() {
             <div className="qa-today">
               {curQa ? (
                 <>
+                  {/* 스크롤은 여기까지 — 입력란은 밖에 두어 답변이 길어져도 자리를 지킨다 (v2.0 사용자 발견) */}
+                  <div className="qa-answers" ref={ansRef} onScroll={onAnsScroll}>
                   <div className="qa-no">TODAY&apos;S QUESTION · Q.{String(curQa.no).padStart(3, '0')}
                     {/* 질문에 대한 오너 설명 — 관리자만 작성 (v2.0 사용자 요청) */}
                     {isAdmin && (
@@ -1088,7 +1173,8 @@ export default function RelDetailPage() {
                   {curQa.note && <div className="qa-note">{curQa.note}</div>}
                   {/* 날짜만, 오른쪽 정렬 (v1.9 사용자 피드백) */}
                   <div className="qa-date" style={{ textAlign: 'right' }}>{curQa.date.replace(/-/g, '.')}</div>
-                  {curAnswers.map((a, i) => {
+                  {qaHidden && <div className="qa-locked">비공개 답변</div>}
+                  {!qaHidden && curAnswers.map((a, i) => {
                     const c = charOf(a.charId);
                     return (
                       <div key={i} className={`qa-ans ${sideOf(a.charId) === 'r' ? 'r' : ''}`}
@@ -1099,12 +1185,16 @@ export default function RelDetailPage() {
                           e.preventDefault();
                           setAnsCtx({ x: e.clientX, y: e.clientY, idx: i });
                         }}>
-                        <div className="who" style={{ fontFamily: familyOf(c?.fontId) }}>{c?.name}</div>
+                        {/* 같은 캐릭터가 연달아 답하면 이름을 한 번만 (v2.0 사용자 요청) */}
+                        {curAnswers[i - 1]?.charId !== a.charId && (
+                          <div className="who" style={{ fontFamily: familyOf(c?.fontId) }}>{c?.name}</div>
+                        )}
                         <div className="bub" {...(a.note ? { 'data-note': a.note } : {})}>{a.text}</div>
                       </div>
                     );
                   })}
-                  {answerableIds.length > 0 && (
+                  </div>
+                  {!qaHidden && answerableIds.length > 0 && (
                     <div className="qa-input">
                       {/* 페어: 클릭 순환 · 다인: 드롭다운으로 선택 (v1.9 사용자 확정) — 권한 있는 캐릭터만 */}
                       <div className="char-pick" onClick={e => {
@@ -1161,11 +1251,12 @@ export default function RelDetailPage() {
               </div>
               <div className="qa-scroll">
                 {qaFiltered.map(q => (
-                  /* 우클릭 — 이 질문을 대기 리스트로 되돌린다 (v2.0 사용자 요청).
+                  /* 우클릭 — 메뉴에서 「리스트로 되돌리기」를 고르면 확인 모달이 뜬다 (v2.0 사용자 요청 —
+                     바로 모달이 뜨는 것보다 한 단계 거치는 쪽이 실수로 우클릭했을 때 안전하다).
                      지금 보고 있는 질문이 아니어도 리스트에서 바로 고를 수 있다 */
                   <div key={q.no} className={`qa-item ${curQa?.no === q.no ? 'on' : ''}`} onClick={() => setQaNo(q.no)}
                     data-tip={isAdmin ? '우클릭 — 리스트로 되돌리기' : undefined}
-                    onContextMenu={e => { if (!isAdmin) return; e.preventDefault(); returnQuestion(q); }}>
+                    onContextMenu={e => { if (!isAdmin) return; e.preventDefault(); setQaCtx({ x: e.clientX, y: e.clientY, no: q.no }); }}>
                     <b>Q.{String(q.no).padStart(3, '0')} {q.q}</b>
                     <small>{q.date.slice(5).replace('-', '.')} · 답변 {answersOf(q.no).length}</small>
                   </div>
@@ -1176,9 +1267,12 @@ export default function RelDetailPage() {
         )}
       </div>
 
-      {/* 역극 · 로그 연동 리스트 (4.5) — 역극: 내 참여 방 + 공개 전환된 완결 방 */}
+      {/* 역극 · 로그 연동 리스트 (4.5) — 역극: 내 참여 방 + 공개 전환된 완결 방.
+          AU마다 숨길 수 있다 (v2.0 사용자 요청 — AU 관리의 체크박스). 둘 다 숨기면 칸 자체가 없다 */}
+      {!(au?.hideRp && au?.hideLog) && (
       <div className="g2" style={{ marginTop: 16 }}>
-        <div className="panel widget" style={{ margin: 0 }}>
+        {!au?.hideRp && (
+        <div className="panel widget" style={{ margin: 0, ...(au?.hideLog ? { gridColumn: '1/-1' } : null) }}>
           <h4>역극 <span className="more" onClick={() => router.push('/rp')}>더보기 ›</span></h4>
           {relRooms.length > 0 ? relRooms.map(rm => (
             <div key={rm.id} className="dday-row" style={{ cursor: 'var(--cur-pointer,pointer)' }} onClick={() => router.push('/rp')}>
@@ -1191,7 +1285,9 @@ export default function RelDetailPage() {
             <p className="hint" style={{ margin: 0 }}>이 자관 기반으로 진행된 역극이 여기에 표시됩니다</p>
           )}
         </div>
-        <div className="panel widget" style={{ margin: 0 }}>
+        )}
+        {!au?.hideLog && (
+        <div className="panel widget" style={{ margin: 0, ...(au?.hideRp ? { gridColumn: '1/-1' } : null) }}>
           <h4>로그 <span className="more" onClick={() => router.push('/trpg')}>더보기 ›</span></h4>
           {relLogs.length > 0 ? relLogs.map(l => (
             <div key={l.id} className="dday-row" style={{ cursor: 'var(--cur-pointer,pointer)' }} onClick={() => router.push(`/trpg/${l.id}`)}>
@@ -1201,7 +1297,9 @@ export default function RelDetailPage() {
             </div>
           )) : <p className="hint" style={{ margin: 0 }}>연동된 로그가 없습니다 — 로그 등록 시 자관을 선택하면 여기에 표시</p>}
         </div>
+        )}
       </div>
+      )}
 
       {/* ---------- 멤버 추가 모달 ---------- */}
       <Modal open={memberOpen} onClose={() => setMemberOpen(false)} small title="멤버 추가"
@@ -1332,12 +1430,40 @@ export default function RelDetailPage() {
                   ))}
                 </div>
                 {a.id !== 'base' && (
-                  <span className="fx" style={{ flexShrink: 0 }}
-                    onClick={() => del.ask(`AU 「${a.label}」를 삭제하시겠습니까?`, () => {
-                      updateRel({ aus: rel.aus.filter(x => x.id !== a.id) });
-                      if (auId === a.id) setAuId('base');
-                    }, '이 AU의 일러·타임라인·문답이 함께 삭제되며 복구할 수 없습니다.')}>✕</span>
+                  <>
+                    {/* 순서 변경 (v2.0 사용자 요청) — 원본(base)은 항상 맨 앞 고정 */}
+                    <span className="fx" style={{ flexShrink: 0, opacity: rel.aus.indexOf(a) <= 1 ? .3 : 1 }}
+                      data-tip="위로"
+                      onClick={() => {
+                        const i = rel.aus.findIndex(x => x.id === a.id);
+                        if (i <= 1) return;   // 0 = base
+                        const next = [...rel.aus];
+                        [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                        updateRel({ aus: next });
+                      }}>▲</span>
+                    <span className="fx" style={{ flexShrink: 0, opacity: rel.aus.indexOf(a) >= rel.aus.length - 1 ? .3 : 1 }}
+                      data-tip="아래로"
+                      onClick={() => {
+                        const i = rel.aus.findIndex(x => x.id === a.id);
+                        if (i < 1 || i >= rel.aus.length - 1) return;
+                        const next = [...rel.aus];
+                        [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                        updateRel({ aus: next });
+                      }}>▼</span>
+                    <span className="fx" style={{ flexShrink: 0 }}
+                      onClick={() => del.ask(`AU 「${a.label}」를 삭제하시겠습니까?`, () => {
+                        updateRel({ aus: rel.aus.filter(x => x.id !== a.id) });
+                        if (auId === a.id) setAuId('base');
+                      }, '이 AU의 일러·타임라인·문답이 함께 삭제되며 복구할 수 없습니다.')}>✕</span>
+                  </>
                 )}
+              </div>
+              {/* 상세 하단의 연동 리스트 숨김 (v2.0 사용자 요청) — 이 AU를 보는 동안만 적용 */}
+              <div style={{ display: 'flex', gap: 16 }}>
+                <KCheck label={<span style={{ fontSize: 11.5 }}>역극 리스트 숨김</span>} checked={!!a.hideRp}
+                  onChange={v => updateRel({ aus: rel.aus.map(x => (x.id === a.id ? { ...x, hideRp: v || undefined } : x)) })} />
+                <KCheck label={<span style={{ fontSize: 11.5 }}>로그 리스트 숨김</span>} checked={!!a.hideLog}
+                  onChange={v => updateRel({ aus: rel.aus.map(x => (x.id === a.id ? { ...x, hideLog: v || undefined } : x)) })} />
               </div>
             </div>
           ))}
@@ -1476,6 +1602,19 @@ export default function RelDetailPage() {
             del.ask('타임라인 항목을 삭제하시겠습니까?',
               () => patchAuData({ timeline: auTimeline.filter((_, j) => j !== i) }));
           }}>삭제</button>
+        </div>,
+        document.body,
+      )}
+
+      {/* 질문 우클릭 메뉴 (v2.0 사용자 요청) — 여기서 골라야 확인 모달이 뜬다 */}
+      {qaCtx && createPortal(
+        <div className="ctx-menu on" style={{ left: qaCtx.x, top: qaCtx.y }} onClick={e => e.stopPropagation()}>
+          <div className="ctx-ttl">Q.{String(qaCtx.no).padStart(3, '0')}</div>
+          <button className="danger" onClick={() => {
+            const q = auQuestions.find(x => x.no === qaCtx.no);
+            setQaCtx(null);
+            if (q) returnQuestion(q);
+          }}>리스트로 되돌리기</button>
         </div>,
         document.body,
       )}

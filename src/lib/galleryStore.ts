@@ -44,6 +44,8 @@ export interface BackupPost {
   authorId: string;
   visibility: Visibility;
   fold: { type: FoldType; label?: string } | null;
+  /** 태그 (v2.0 사용자 요청) — 목록·카드에 나열되고 검색에 걸린다 */
+  tags?: string[];
 }
 
 export const BACKUP_SEED: BackupPost[] = [];
@@ -99,6 +101,9 @@ export interface TrpgLogBody {
   originalFileId?: string;
   originalName?: string;
   visibility: Visibility;
+  /** 어느 로그 백업 소속인지 (v2.0) — 목록 문서와 따로 저장되므로 소속도 따로 들고 있어야
+   *  「메뉴가 비공개면 글도 비공개로」 판정이 본문 문서에도 걸린다. 없으면 기본 섹션. */
+  secId?: string;
 }
 
 /** 본문 문서에 적을 열람 권한 — 비밀번호가 걸려 있으면 목록 필터가 예전부터 그래 왔듯 공개로 둔다

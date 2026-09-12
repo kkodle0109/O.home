@@ -57,7 +57,7 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
 };
 
 /** 같은 종류를 여러 개 추가할 수 있는 위젯 (v1.9 사용자 확정 — 나머지는 하나만) */
-export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco'];
+export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
 export function widgetLabel(widgets: WidgetConf[], w: WidgetConf): string {
@@ -92,7 +92,7 @@ const STORAGE_KEY = 'ohome.main.v1';
 /** 편집모드를 지원하는 페이지 (v1.9 — 카드 그리드 드래그 정렬 포함)
  *  /trpg 로그 백업이 빠져 있던 것은 실수 — 드래그 정렬·목록 숨김 확인 모두 이 토글이 있어야 켜진다
  *  (v2.0 사용자 발견 — 목록 숨김 기능을 만들다 보니 편집모드 자체가 이 페이지에서 켜지지 않는 걸 발견) */
-const EDIT_PAGES = ['/', '/comm-apply', '/chars', '/rels', '/comm', '/backup', '/dotori', '/tchars', '/playlog', '/trpg'];
+const EDIT_PAGES = ['/', '/comm-apply', '/chars', '/rels', '/comm', '/gallery', '/dotori', '/tchars', '/playlog', '/trpg'];
 const EDIT_PAGE_NAMES = '메인 · 신청자 리스트 · 캐릭터 · 자관 · 커미션 · 갤러리 · 도토리 · TRPG 캐릭터 · 플레이기록 · TRPG 로그';
 
 interface MainCtx {

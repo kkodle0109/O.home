@@ -5,7 +5,7 @@ import React, { Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useLocalList } from '@/lib/postStore';
-import { Character, CHAR_SEED, Relation, REL_SEED } from '@/lib/charStore';
+import { Character, CHAR_SEED, Relation, REL_SEED, findByKey } from '@/lib/charStore';
 import { RelForm } from '@/components/rels/RelForm';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
@@ -20,7 +20,8 @@ function RelEditInner() {
   const [rels, setRels, loaded] = useLocalList<Relation>('ohome.rels.v1', REL_SEED);
   const [chars] = useLocalList<Character>('ohome.chars.v1', CHAR_SEED);
 
-  const rel = rels.find(r => r.id === id);
+  // 별명 주소로도 열린다 (v2.0 사용자 요청)
+  const rel = findByKey(rels, id);
   const auObj = auId ? rel?.aus.find(a => a.id === auId && a.id !== 'base') : undefined;
   if (!loaded) return <section className="page" />;
   if (!isAdmin || !rel) {
@@ -43,20 +44,22 @@ function RelEditInner() {
         myChars={chars.filter(c => c.own)}
         memberNames={Object.fromEntries(rel.members.map(m => [m.charId, chars.find(c => c.id === m.charId)?.name ?? m.charId]))}
         onCancel={() => router.push(`/rels/${rel.id}`)}
+        existingIds={rels.filter(r => r.id !== rel.id).flatMap(r => [r.id, ...(r.slug ? [r.slug] : [])])}
         onSave={v => {
           setRels(rels.map(r => (r.id === rel.id ? {
             ...r,
-            name: v.name, kind: v.kind,
-            fontId: v.fontId, bodyFontId: v.bodyFontId, visibility: v.visibility,
+            name: v.name, kind: v.kind, visibility: v.visibility,
+            // 폰트는 AU 편집이면 그 AU에만 (v2.0 사용자 제보 — 여태 원본에 저장돼 전체가 같이 바뀌었다)
+            ...(auObj ? {} : { fontId: v.fontId, bodyFontId: v.bodyFontId }),
             // 헤더는 AU 편집이면 그 AU에만 저장 — base 헤더는 유지 (v1.9 AU별 헤더 분리)
-            ...(auObj ? {} : { headerImgId: v.headerImgId, headerCrop: v.headerCrop }),
+            ...(auObj ? {} : { headerImgId: v.headerImgId, headerCrop: v.headerCrop, slug: v.slug }),
             // 페이지 테마 — AU 편집이면 그 AU에만 (base 테마는 유지, v1.9)
             ...(auObj ? {} : { themeMode: v.themeMode, themeColor: v.themeColor, themeTone: v.themeTone, illuBg: v.illuBg, illuOn: v.illuOn, nameColor: v.nameColor, cpColor: v.cpColor, cpTagBg: v.cpTagBg, cpTagFg: v.cpTagFg,
                 nameShadowColor: v.nameShadowColor, nameShadow: v.nameShadow,
                 headerBgG1: v.headerBgG1, headerBgG2: v.headerBgG2, headerBgAngle: v.headerBgAngle,
                 pageBgG1: v.pageBgG1, pageBgG2: v.pageBgG2, pageBgAngle: v.pageBgAngle }),
-            cp: v.cp,
-            fullFront: v.fullFront ?? r.fullFront,
+            // CP/문답 숨김은 자관 전체 설정(AU 폼에는 없음) · 전신 앞뒤는 AU면 그 AU에만 (v2.0)
+            ...(auObj ? {} : { cp: v.cp, qaHide: v.qaHide, fullFront: v.fullFront ?? r.fullFront }),
             illustMode: v.kind === 'pair' ? r.illustMode : 'one',
             // 전신 크기·위치·한마디·대사 색 — **AU를 편집 중이면 자관 공통을 건드리지 않는다**
             // (v2.0 사용자 발견: AU에서 고치면 다른 AU 페이지까지 같이 바뀌던 것.
@@ -70,6 +73,7 @@ function RelEditInner() {
                 fullOffY: v.fullOffsets?.[m.charId]?.y ?? m.fullOffY,
                 quote: v.quotes?.[m.charId] ?? m.quote,
                 nameSize: v.nameSizes?.[m.charId] ?? m.nameSize,
+                nameBold: v.nameBolds?.[m.charId] ?? m.nameBold,
                 quoteColor: v.quoteColors?.[m.charId]?.fg ?? m.quoteColor,
                 quoteMarkColor: v.quoteColors?.[m.charId]?.mark ?? m.quoteMarkColor,
               }))
@@ -81,6 +85,8 @@ function RelEditInner() {
                   ...a, arts: v.arts, catchphrase: v.catchphrase,
                   // AU별 자관명 (v2.0 사용자 요청) — 비우면 자관 이름 그대로 쓰게 아예 지운다
                   name: v.auName?.trim() ? v.auName.trim() : undefined,
+                  // AU별 폰트·전신 앞뒤 (v2.0 사용자 제보) — 원본이 아니라 이 AU에 담는다
+                  fontId: v.fontId, bodyFontId: v.bodyFontId, fullFront: v.fullFront,
                   // AU별 색·배경 (v2.0 사용자 요청) — 「직접 지정」을 끄면 undefined가 되어
                   // 자관 값으로 되돌아간다(auStyle이 묶음 단위로 판정한다)
                   style: {
@@ -99,6 +105,7 @@ function RelEditInner() {
                     fullOffY: v.fullOffsets?.[m.charId]?.y,
                     quote: v.quotes?.[m.charId],
                     nameSize: v.nameSizes?.[m.charId],
+                    nameBold: v.nameBolds?.[m.charId],
                     quoteColor: v.quoteColors?.[m.charId]?.fg,
                     quoteMarkColor: v.quoteColors?.[m.charId]?.mark,
                   }])),
@@ -123,6 +130,7 @@ function RelEditInner() {
                       fullOffY: v.fullOffsets?.[m.charId]?.y ?? m.fullOffY,
                       quote: v.quotes?.[m.charId] ?? m.quote,
                       nameSize: v.nameSizes?.[m.charId] ?? m.nameSize,
+                      nameBold: v.nameBolds?.[m.charId] ?? m.nameBold,
                       quoteColor: v.quoteColors?.[m.charId]?.fg ?? m.quoteColor,
                       quoteMarkColor: v.quoteColors?.[m.charId]?.mark ?? m.quoteMarkColor,
                     })),
