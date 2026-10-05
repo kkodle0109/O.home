@@ -18,7 +18,7 @@ import { SettingSync } from '@/components/shell/SettingSync';
 import { ListSync } from '@/components/shell/ListSync';
 import { UploadBusy } from '@/components/shell/UploadBusy';
 import { SpellCheck } from '@/components/shell/SpellCheck';
-import { SnowEffect } from '@/components/shell/SnowEffect';
+import { SparkleDust } from '@/components/shell/SparkleDust';
 import { PageFrame } from '@/lib/pageRefresh';
 import { MenuGuard } from '@/components/shell/MenuGuard';
 import { ServerBoot } from '@/components/shell/ServerBoot';
@@ -99,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <UploadBusy />
                   {/* 맞춤법 검사 밑줄 숨김 — 디자인 탭 (v2.0) */}
                   <SpellCheck />
-                  <SnowEffect />
+                  <SparkleDust />
                   </SetupGate>
                 </BgmStoreProvider>
               </MainStoreProvider>
