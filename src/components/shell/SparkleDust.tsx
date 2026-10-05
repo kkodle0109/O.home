@@ -55,7 +55,7 @@ function makeStar(color: string) {
 }
 
 export function SparkleDust({
-  count = 150,                                    // 알갱이 개수 (모바일은 절반)
+  count = 200,                                    // 알갱이 개수 (모바일은 절반)
   speed = 1,                                     // 움직임 속도 배율
   colors = ['#fff'],    // 섞어 쓸 빛 색
   stars = 0,                                  // 별 모양 반짝임 비율 (0~1)
