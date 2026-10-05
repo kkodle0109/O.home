@@ -1,0 +1,32 @@
+/* 이미지 위젯 애니메이션 — 둥실 / 살랑 / 통통
+   --wa-dur: 한 바퀴 시간, --wa-amp: 움직이는 크기, --wa-deg: 기울기 각도 */
+
+@keyframes wa-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(calc(var(--wa-amp, 10px) * -1)); }
+}
+
+@keyframes wa-sway {
+  0%, 100% { transform: rotate(calc(var(--wa-deg, 3deg) * -1)); }
+  50%      { transform: rotate(var(--wa-deg, 3deg)); }
+}
+
+@keyframes wa-bounce {
+  0%   { transform: translateY(0) scale(1.06, .92); animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
+  35%  { transform: translateY(calc(var(--wa-amp, 14px) * -1)) scale(.96, 1.05); animation-timing-function: cubic-bezier(.7, 0, .9, .4); }
+  65%  { transform: translateY(0) scale(1.06, .92); animation-timing-function: ease-out; }
+  80%  { transform: translateY(0) scale(1, 1); }
+  100% { transform: translateY(0) scale(1.06, .92); }
+}
+
+.wa-float  { animation: wa-float  var(--wa-dur, 4s)   ease-in-out infinite; will-change: transform; }
+.wa-sway   { animation: wa-sway   var(--wa-dur, 3s)   ease-in-out infinite; transform-origin: 50% 90%; will-change: transform; }
+.wa-bounce { animation: wa-bounce var(--wa-dur, 1.4s) infinite;             transform-origin: 50% 100%; will-change: transform; }
+
+/* 편집모드에서는 멈춤 (위치 잡기 편하게) */
+body.edit-on .wa-float, body.edit-on .wa-sway, body.edit-on .wa-bounce { animation: none !important; }
+
+/* 「동작 줄이기」를 켠 사용자는 멈춤 */
+@media (prefers-reduced-motion: reduce) {
+  .wa-float, .wa-sway, .wa-bounce { animation: none !important; }
+}
