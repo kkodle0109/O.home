@@ -55,10 +55,10 @@ function makeStar(color: string) {
 }
 
 export function SparkleDust({
-  count = 90,                                    // 알갱이 개수 (모바일은 절반)
+  count = 150,                                    // 알갱이 개수 (모바일은 절반)
   speed = 1,                                     // 움직임 속도 배율
-  colors = ['#fff6dc', '#cfe6ff', '#ffe3f5'],    // 섞어 쓸 빛 색
-  stars = 0.15,                                  // 별 모양 반짝임 비율 (0~1)
+  colors = ['#fff'],    // 섞어 쓸 빛 색
+  stars = 0,                                  // 별 모양 반짝임 비율 (0~1)
   layer = 'back',                                // 'back' = 글·카드 뒤 / 'front' = 앞
 }: {
   count?: number;
