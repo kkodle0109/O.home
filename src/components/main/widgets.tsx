@@ -511,32 +511,50 @@ export function DecoWidget({ conf }: { conf: WidgetConf }) {
   const wPx = conf.settings.wPx as number | undefined;
   const hPx = conf.settings.hPx as number | undefined;
   const canGo = !editOn && !!cur?.link;
+
+  // 애니메이션 — 설정에 값이 없으면 '없음' (기존 위젯은 그대로)
+  const anim = (conf.settings.anim as WidgetAnim) ?? 'none';
+  const animSpeed = (conf.settings.animSpeed as number) ?? 1;
+  const animSize = (conf.settings.animSize as number) ?? 1;
+
   return (
     <div className="deco-wgt"
       style={{
-        position: 'relative', overflow: 'hidden',
+        position: 'relative',
+        // 애니메이션이 켜져 있으면 움직이는 이미지가 박스 밖으로 나가도 잘리지 않게 한다
+        overflow: anim !== 'none' ? 'visible' : 'hidden',
         width: wPx ? `${wPx}px` : '100%', maxWidth: '100%',
         height: hPx ? `${hPx}px` : '100%', minHeight: hPx ? undefined : 80,
         margin: wPx ? '0 auto' : undefined,
         aspectRatio: conf.h == null && !hPx ? '1/1' : undefined, // 크기 동결 전 기본 정사각
         borderRadius: rounded ? 'var(--radius)' : 0,
       }}>
-      {/* 클릭은 이미지 위에서만 (v2.0 사용자 요청) — 예전에는 위젯 칸 전체가 눌렸다.
-          꽉 채움은 이미지가 칸을 채우므로 그대로 칸 전체, 비율 유지는 그림 픽셀 기준(투명 제외) */}
-      {cur
-        ? (fit === 'contain'
-          ? <ContainImg key={cur.id} fileRef={cur.imgId} rounded={rounded} onActivate={canGo ? onBody : undefined} />
+      {/* 애니메이션 래퍼 — 이미지 묶음 전체를 한 덩어리로 움직인다.
+          위젯 틀(.wgt)에는 기울기 값이 걸려 있어서 거기에 걸면 덮어써지므로 안쪽에 둔다 */}
+      <div className={animClass(anim)}
+        style={{
+          position: 'absolute', inset: 0,
+          // 꽉 채움은 이미지가 모서리까지 차므로, 래퍼가 직접 둥글게 잘라야 움직여도 모양이 유지된다
+          ...(fit === 'cover' ? { overflow: 'hidden', borderRadius: rounded ? 'var(--radius)' : 0 } : {}),
+          ...animStyle(anim, animSpeed, animSize),
+        }}>
+        {/* 클릭은 이미지 위에서만 (v2.0 사용자 요청) — 예전에는 위젯 칸 전체가 눌렸다.
+            꽉 채움은 이미지가 칸을 채우므로 그대로 칸 전체, 비율 유지는 그림 픽셀 기준(투명 제외) */}
+        {cur
+          ? (fit === 'contain'
+            ? <ContainImg key={cur.id} fileRef={cur.imgId} rounded={rounded} onActivate={canGo ? onBody : undefined} />
+            : (
+              <div style={{ position: 'absolute', inset: 0, cursor: canGo ? 'var(--cur-pointer,pointer)' : undefined }}
+                onClick={canGo ? onBody : undefined}>
+                <CroppedBlobImg key={cur.id} fileRef={cur.imgId} crop={cur.crop} ph="" />
+              </div>
+            ))
           : (
-            <div style={{ position: 'absolute', inset: 0, cursor: canGo ? 'var(--cur-pointer,pointer)' : undefined }}
-              onClick={canGo ? onBody : undefined}>
-              <CroppedBlobImg key={cur.id} fileRef={cur.imgId} crop={cur.crop} ph="" />
+            <div className="ph" style={{ position: 'absolute', inset: 0 }}>
+              <span style={{ fontSize: 10 }}>{isAdmin ? 'DECO — 편집모드에서 우클릭 → 설정' : 'DECO'}</span>
             </div>
-          ))
-        : (
-          <div className="ph" style={{ position: 'absolute', inset: 0 }}>
-            <span style={{ fontSize: 10 }}>{isAdmin ? 'DECO — 편집모드에서 우클릭 → 설정' : 'DECO'}</span>
-          </div>
-        )}
+          )}
+      </div>
       {/* 여러 장일 때만 지금 몇 번째인지 표시 — 눌러서 바로 넘길 수도 있다 (v2.0) */}
       {slides.length > 1 && !editOn && (
         <div className="deco-dots" onClick={e => e.stopPropagation()}>
