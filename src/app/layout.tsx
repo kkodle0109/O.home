@@ -99,6 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <UploadBusy />
                   {/* 맞춤법 검사 밑줄 숨김 — 디자인 탭 (v2.0) */}
                   <SpellCheck />
+                  <ClickerWidget />
                   </SetupGate>
                 </BgmStoreProvider>
               </MainStoreProvider>
