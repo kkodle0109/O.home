@@ -13,6 +13,8 @@ import { normalizeInternalLink } from '@/lib/link';
 import { KSelect } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
 import { useFonts } from '@/lib/fontStore';
+import { AnimFields } from '@/components/main/AnimFields';  
+import type { WidgetAnim } from '@/lib/widgetAnim'; 
 
 /* ---------- MEMO · 자유 텍스트 — settings.text (+ freetext: 폰트·크기·색·정렬, v1.9) ---------- */
 export function TextSettingEditor({ conf }: { conf: WidgetConf }) {
@@ -198,6 +200,10 @@ export function DecoEditor({ conf, onClose }: { conf: WidgetConf; onClose?: () =
   const sec = (conf.settings.interval as number) ?? 5;
   const ratio = (conf.w ?? 240) / (conf.h ?? 240);
   const slides = decoSlides(conf.settings);
+   // 애니메이션 설정 — 값이 없으면 '없음'
+  const anim = (conf.settings.anim as WidgetAnim) ?? 'none';
+  const animSpeed = (conf.settings.animSpeed as number) ?? 1;
+  const animSize = (conf.settings.animSize as number) ?? 1;
   const inputId = `decoF-${conf.id}`;
 
   const set = (patch: Record<string, unknown>) =>
@@ -295,11 +301,15 @@ export function DecoEditor({ conf, onClose }: { conf: WidgetConf; onClose?: () =
           style={{ width: 140 }} />
       </div>
 
+       {/* 애니메이션 — 둥실 / 살랑 / 통통 */}
+      <AnimFields anim={anim} speed={animSpeed} size={animSize} onChange={p => set(p)} />
+
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 10.5 }}
           onClick={() => { setSwapFor(null); document.getElementById(inputId)?.click(); }}>＋ 이미지 추가</button>
         <KCheck label="둥근 모서리" checked={rounded} onChange={v => set({ rounded: v })} />
         {onClose && <button className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={onClose}>CLOSE</button>}
+        
       </div>
 
       <p className="hint" style={{ margin: 0 }}>
