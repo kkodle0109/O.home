@@ -29,11 +29,11 @@ function makeSprite(color: string) {
 }
 
 export function SnowEffect({
-  count = 70,                                    // 눈송이 개수 (모바일은 절반)
-  speed = 1,                                     // 떨어지는 속도 배율
-  colors = ['#ffffff', '#bfe0ff', '#ffd9f2'],    // 섞어 쓸 빛 색
+  count = 120,                                    // 눈송이 개수 (모바일은 절반)
+  speed = 0.7,                                     // 떨어지는 속도 배율
+  colors = ['#ffffff'],    // 섞어 쓸 빛 색
   glow = true,                                   // 겹치면 더 밝아지는 발광 합성
-  blur = 0,                                      // 전체에 추가로 거는 블러(px). 0이면 끔
+  blur = 1.5,                                      // 전체에 추가로 거는 블러(px). 0이면 끔
 }: {
   count?: number;
   speed?: number;
