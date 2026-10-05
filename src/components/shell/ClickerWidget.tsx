@@ -19,8 +19,8 @@ export function ClickerWidget() {
       <div
         className="ttc-widget"
         suppressHydrationWarning
-        data-img-normal="clicker/kei.png"
-        data-img-click="clicker/kei.png"
+        data-img-normal="/clicker/kei.png"
+        data-img-click="/clicker/kei.png"
         data-right="20"
         data-bottom="100"
         data-width="120"
@@ -30,8 +30,8 @@ export function ClickerWidget() {
        <div
         className="ttc-widget"
         suppressHydrationWarning
-        data-img-normal="clicker/yui.png"
-        data-img-click="clicker/yui.png"
+        data-img-normal="/clicker/yui.png"
+        data-img-click="/clicker/yui.png"
         data-right="20"
         data-bottom="100"
         data-width="120"
