@@ -190,4 +190,35 @@ export function ImageWindow({ conf, children }: { conf: WidgetConf; children: Re
             data-tip={movable ? '눌러서 열기 · 끌어서 이동' : '눌러서 열기'}
             onPointerDown={startDrag} {...dragProps}
             onClick={() => { if (noClick.current) return; change({ closed: false, shaded: false }); }}>
-            <svg viewBox="0 0 16 16"
+            <svg viewBox="0 0 16 16" aria-hidden>
+              <rect x="2" y="3" width="12" height="10" rx="1.5" />
+              <circle cx="6" cy="7" r="1.2" />
+              <path d="M3 12l3.5-3.5 2.5 2.5 2-2 2 2" />
+            </svg>
+            <span>{title}</span>
+          </button>
+        </div>
+      ) : (
+        // 열린 상태 — 패널 창
+        <div className={`imgwin imgwin-open ${shaded ? 'shaded' : ''}`}>
+          <header className={`imgwin-bar ${movable ? 'movable' : ''}`}
+            onPointerDown={e => { if ((e.target as HTMLElement).closest('button')) return; startDrag(e); }}
+            {...dragProps}
+            onDoubleClick={e => { if (!movable || (e.target as HTMLElement).closest('button')) return; resetPos(); }}>
+            <span className="imgwin-title" data-tip={movable ? '끌어서 이동 · 더블클릭: 원위치' : undefined}>{title}</span>
+            <button className="imgwin-btn imgwin-fold" aria-label={shaded ? '펼치기' : '접기'}
+              data-tip={shaded ? '펼치기' : '접기'}
+              onClick={() => { if (!editOn) change({ shaded: !st.shaded }); }}>
+              <svg viewBox="0 0 16 16" aria-hidden><path d="M4 6l4 4 4-4" /></svg>
+            </button>
+            <button className="imgwin-btn" aria-label="창 닫기" data-tip="닫기"
+              onClick={() => { if (!editOn) change({ closed: true }); }}>
+              <svg viewBox="0 0 16 16" aria-hidden><path d="M4 4l8 8M12 4l-8 8" /></svg>
+            </button>
+          </header>
+          {!shaded && <div className="imgwin-body">{children}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
