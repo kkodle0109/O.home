@@ -22,6 +22,7 @@ import { StickyMemo, MEMO_SEED, MEMO_SIZE_W, useMemoSettings } from '@/lib/memoS
 import { BlobImg, useBlobUrl } from '@/lib/blobStore';
 import { normalizeInternalLink } from '@/lib/link';
 import { animClass, animStyle, type WidgetAnim } from '@/lib/widgetAnim';
+import { ImageWindow } from '@/components/main/ImageWindow';
 import {
   Applicant, APPLY_SEED, useCommSettings, badgeStyle, maskName, inTrash,
 } from '@/lib/commStore';
