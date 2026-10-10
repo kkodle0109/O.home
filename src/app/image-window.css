@@ -1,0 +1,61 @@
+/* ===== 이미지 창 (장식 이미지 위젯의 「창 모양으로 표시」) — 사이트 기본 패널 스타일 ===== */
+.imgwin {
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--wg-bg, var(--panel)); color: var(--wg-fg, var(--ink));
+  border: var(--wg-bd-w, 0px) solid var(--wg-bd, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--sh-md);
+  overflow: hidden;
+}
+.imgwin.shaded { height: auto !important; }   /* 접으면 제목 줄만 */
+
+/* 제목 줄 — 다른 위젯의 제목(h4)과 같은 글씨 + 오른쪽 버튼 */
+.imgwin-bar {
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 7px 8px 7px 14px;
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+}
+.imgwin.shaded .imgwin-bar { border-bottom: none; }
+.imgwin-title {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: calc(11.5px * var(--fs, 1)); letter-spacing: .12em;
+  color: var(--wg-title, var(--sub));
+}
+.imgwin-btn {
+  width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
+  display: grid; place-items: center;
+  color: var(--sub); transition: .13s; cursor: var(--cur-pointer, pointer);
+}
+.imgwin-btn:hover { background: rgba(127,127,127,.14); color: var(--ink); }
+.imgwin-btn svg {
+  width: 14px; height: 14px; display: block;
+  stroke: currentColor; fill: none; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round; transition: transform .2s;
+}
+.imgwin.shaded .imgwin-fold svg { transform: rotate(180deg); }
+/* 편집모드에서는 눌러도 동작하지 않으므로 흐리게 */
+body.edit-on .imgwin-btn { pointer-events: none; opacity: .4; }
+
+.imgwin-body { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+
+/* 닫힌 상태 — 태그 필터 칩과 같은 알약 모양 */
+.imgwin-closed { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 36px; }
+.imgwin-chip {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--panel); color: var(--sub); box-shadow: var(--sh-sm);
+  font-size: calc(12px * var(--fs, 1)); letter-spacing: .04em;
+  cursor: var(--cur-pointer, pointer); transition: .15s; user-select: none;
+}
+.imgwin-chip:hover { color: var(--ink); transform: translateY(-1px); }
+.imgwin-chip svg {
+  width: 15px; height: 15px; flex-shrink: 0;
+  stroke: currentColor; fill: none; stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.imgwin-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 열릴 때 — 사이트의 다른 화면 전환과 같은 부드러운 등장 */
+.imgwin-open { animation: fade .25s; }
+@media (prefers-reduced-motion: reduce) { .imgwin-open { animation: none; } }
