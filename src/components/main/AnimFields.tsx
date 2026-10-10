@@ -21,9 +21,14 @@ export function AnimFields({ anim, speed, size, onChange }: {
             <span className="cp-lb">속도</span>
             <KStep value={Math.round(speed * 100)} min={50} max={300} step={10} suffix="%"
               onChange={v => onChange({ animSpeed: v / 100 })} />
-            <span className="cp-lb">크기</span>
-            <KStep value={Math.round(size * 100)} min={50} max={300} step={10} suffix="%"
-              onChange={v => onChange({ animSize: v / 100 })} />
+            {/* 회전은 움직이는 크기가 없어서 크기 칸을 숨긴다 */}
+            {anim !== 'spin' && (
+              <>
+                <span className="cp-lb">크기</span>
+                <KStep value={Math.round(size * 100)} min={50} max={300} step={10} suffix="%"
+                  onChange={v => onChange({ animSize: v / 100 })} />
+              </>
+            )}
           </>
         )}
       </div>
