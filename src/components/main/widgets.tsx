@@ -484,7 +484,9 @@ export function DecoWidget({ conf }: { conf: WidgetConf }) {
   const { editOn } = useMainStore();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const rounded = (conf.settings.rounded as boolean) ?? true;
+  // 창 — 「창 모양으로 표시」를 켜면 맥 스타일 창에 담긴다 (창은 직각이라 둥근 모서리는 끈다)
+  const winOn = !!conf.settings.win;
+  const rounded = winOn ? false : ((conf.settings.rounded as boolean) ?? true);
   const fit = (conf.settings.fit as 'cover' | 'contain') ?? 'cover';   // 꽉 채움(잘림) / 비율 유지 (v1.9)
   // 여러 장 슬라이드 (v2.0) — 한 장만 넣던 옛 저장분도 같은 목록으로 읽힌다
   const slides = decoSlides(conf.settings);
@@ -518,7 +520,7 @@ export function DecoWidget({ conf }: { conf: WidgetConf }) {
   const animSpeed = (conf.settings.animSpeed as number) ?? 1;
   const animSize = (conf.settings.animSize as number) ?? 1;
 
-  return (
+  const content = (
     <div className="deco-wgt"
       style={{
         position: 'relative',
@@ -572,6 +574,9 @@ export function DecoWidget({ conf }: { conf: WidgetConf }) {
       </div>
     </div>
   );
+
+  // 창 — 켜져 있으면 맥 스타일 창으로 감싼다
+  return winOn ? <ImageWindow conf={conf}>{content}</ImageWindow> : content;
 }
 
 /* ---------- 스티커 메모 미니보드 (4.6) — 읽기 전용 축소 보드, 클릭 시 /memo ---------- */
