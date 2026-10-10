@@ -313,6 +313,8 @@ export function DecoEditor({ conf, onClose }: { conf: WidgetConf; onClose?: () =
               onChange={e => set({ winTitle: e.target.value || undefined })} style={{ width: 160 }} />
             <KCheck label="처음에는 닫힌 채로" checked={!!conf.settings.winStartClosed}
               onChange={v => set({ winStartClosed: v || undefined })} />
+            <KCheck label="방문자가 옮길 수 있게" checked={!!conf.settings.winMovable}
+              onChange={v => set({ winMovable: v || undefined })} />
           </div>
         )}
       </div>
