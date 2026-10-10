@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-export type WidgetAnim = 'none' | 'float' | 'sway' | 'bounce';
+export type WidgetAnim = 'none' | 'float' | 'sway' | 'bounce' | 'spin';
 
 // 설정창의 선택지로 쓸 목록
 export const ANIM_OPTIONS: { value: WidgetAnim; label: string }[] = [
@@ -8,13 +8,15 @@ export const ANIM_OPTIONS: { value: WidgetAnim; label: string }[] = [
   { value: 'float', label: '둥실' },
   { value: 'sway', label: '살랑' },
   { value: 'bounce', label: '통통' },
+  { value: 'spin', label: '회전' },
 ];
 
-// 기본 시간(초)과 움직임 크기 (float·bounce는 px, sway는 도)
+// 기본 시간(초)과 움직임 크기 (float·bounce는 px, sway는 도, spin은 크기 없음)
 const BASE = {
   float: { dur: 4, amp: 10 },
   sway: { dur: 3, amp: 3 },
   bounce: { dur: 1.4, amp: 14 },
+  spin: { dur: 6, amp: 0 },   // 한 바퀴 6초
 };
 
 /** 이미지에 붙일 클래스 이름 */
