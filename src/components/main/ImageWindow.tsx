@@ -2,8 +2,8 @@
 // 이미지 창 — 장식 이미지를 사이트 기본 패널 스타일의 창에 담아 보여준다.
 // ✕를 누르면 칩으로 줄어들고, 칩을 누르면 다시 열린다. ⌄는 제목만 남기고 접는다.
 // 「방문자가 옮길 수 있게」를 켜면 제목 줄(닫힌 상태에서는 칩)을 끌어 옮길 수 있다.
-// 옮긴 위치는 접속 중에만 기억하고 새로고침하면 원위치로 돌아간다.
-// (「옮긴 위치를 기억하기」를 켜면 브라우저에 저장해 새로고침해도 유지한다)
+// 열림/닫힘과 옮긴 위치는 접속 중에만 기억하고, 새로고침하면 처음 상태로 돌아간다.
+// (「기억하기」를 켜면 브라우저에 저장해 새로고침해도 유지한다)
 import React, { useEffect, useRef, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
 
@@ -14,8 +14,9 @@ type DragInfo = Bounds & { sx: number; sy: number; ox: number; oy: number; moved
 
 const ZERO: Pos = { x: 0, y: 0 };
 
-// 접속 중에만 기억하는 위치 — 메뉴를 옮겨 다녀도 유지되고, 새로고침하면 사라진다
+// 접속 중에만 기억하는 값 — 메뉴를 옮겨 다녀도 유지되고, 새로고침하면 사라진다
 const sessionPos = new Map<string, Pos>();
+const sessionState = new Map<string, WinState>();
 
 export function ImageWindow({ conf, children }: { conf: WidgetConf; children: React.ReactNode }) {
   const { editOn } = useMainStore();
@@ -23,11 +24,12 @@ export function ImageWindow({ conf, children }: { conf: WidgetConf; children: Re
     winTitle?: string; winStartClosed?: boolean; winMovable?: boolean; winKeepPos?: boolean;
   };
   const title = s.winTitle?.trim() || 'IMAGE';
-  const keepPos = !!s.winKeepPos;   // 켜면 새로고침해도 옮긴 위치를 유지
+  const keep = !!s.winKeepPos;   // 켜면 위치·열림/닫힘을 새로고침해도 유지
   const key = `ohome.imgwin.${conf.id}`;
   const posKey = `ohome.imgwin.pos.${conf.id}`;
+  const initial: WinState = { closed: !!s.winStartClosed, shaded: false };
 
-  const [st, setSt] = useState<WinState>({ closed: !!s.winStartClosed, shaded: false });
+  const [st, setSt] = useState<WinState>(initial);
   const [pos, setPos] = useState<Pos>(ZERO);
   const [dragging, setDragging] = useState(false);
   const [mobile, setMobile] = useState(false);
@@ -45,47 +47,54 @@ export function ImageWindow({ conf, children }: { conf: WidgetConf; children: Re
     return () => mq.removeEventListener('change', h);
   }, []);
 
-  // 방문자가 마지막에 둔 열림/닫힘 상태와 위치를 불러온다
+  // 열림/닫힘 상태와 위치를 불러온다
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const p = JSON.parse(raw) as Partial<WinState>;
-        setSt({ closed: !!p.closed, shaded: !!p.shaded });
-      }
-    } catch { /* 저장소를 못 쓰면 기본값 */ }
+    let savedState: WinState | undefined;
+    let savedPos: Pos | undefined;
 
-    let saved: Pos | undefined;
-    if (keepPos) {
-      // 기억하기 — 브라우저에 저장된 위치를 불러온다
+    if (keep) {
+      // 기억하기 — 브라우저에 저장된 값을 불러온다
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const p = JSON.parse(raw) as Partial<WinState>;
+          savedState = { closed: !!p.closed, shaded: !!p.shaded };
+        }
+      } catch { /* 저장소를 못 쓰면 기본값 */ }
       try {
         const raw = localStorage.getItem(posKey);
         if (raw) {
           const p = JSON.parse(raw) as Partial<Pos>;
-          if (Number.isFinite(p.x) && Number.isFinite(p.y)) saved = { x: p.x as number, y: p.y as number };
+          if (Number.isFinite(p.x) && Number.isFinite(p.y)) savedPos = { x: p.x as number, y: p.y as number };
         }
       } catch { /* 무시 */ }
     } else {
-      // 기본 — 예전에 저장돼 있던 위치는 지우고, 접속 중에 옮긴 위치만 되살린다
-      try { localStorage.removeItem(posKey); } catch { /* 무시 */ }
-      saved = sessionPos.get(conf.id);
+      // 기본 — 예전에 저장돼 있던 값은 지우고, 접속 중에 바꾼 값만 되살린다
+      try { localStorage.removeItem(key); localStorage.removeItem(posKey); } catch { /* 무시 */ }
+      savedState = sessionState.get(conf.id);
+      savedPos = sessionPos.get(conf.id);
     }
-    if (saved) { posRef.current = saved; setPos(saved); }
-  }, [key, posKey, keepPos, conf.id]);
+
+    // 저장된 게 없으면 설정에서 정한 처음 상태로
+    setSt(savedState ?? { closed: !!s.winStartClosed, shaded: false });
+    const p = savedPos ?? ZERO;
+    posRef.current = p;
+    setPos(p);
+  }, [key, posKey, keep, conf.id, s.winStartClosed]);
 
   const change = (next: Partial<WinState>) => {
     const merged = { ...st, ...next };
     setSt(merged);
+    sessionState.set(conf.id, merged);   // 접속 중 기억 (새로고침하면 사라짐)
+    if (!keep) return;
     try { localStorage.setItem(key, JSON.stringify(merged)); } catch { /* 무시 */ }
   };
 
   const applyPos = (p: Pos) => { posRef.current = p; setPos(p); };
   const savePos = (p: Pos) => {
     const zero = p.x === 0 && p.y === 0;
-    // 접속 중 기억 (새로고침하면 사라짐)
     if (zero) sessionPos.delete(conf.id); else sessionPos.set(conf.id, p);
-    if (!keepPos) return;
-    // 기억하기를 켠 경우에만 브라우저에 저장
+    if (!keep) return;
     try {
       if (zero) localStorage.removeItem(posKey);
       else localStorage.setItem(posKey, JSON.stringify(p));
@@ -133,7 +142,7 @@ export function ImageWindow({ conf, children }: { conf: WidgetConf; children: Re
     fit();
     window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
-  }, [movable, keepPos, st.closed, st.shaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [movable, keep, st.closed, st.shaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startDrag = (e: React.PointerEvent) => {
     if (!movable || e.button !== 0) return;
@@ -181,35 +190,4 @@ export function ImageWindow({ conf, children }: { conf: WidgetConf; children: Re
             data-tip={movable ? '눌러서 열기 · 끌어서 이동' : '눌러서 열기'}
             onPointerDown={startDrag} {...dragProps}
             onClick={() => { if (noClick.current) return; change({ closed: false, shaded: false }); }}>
-            <svg viewBox="0 0 16 16" aria-hidden>
-              <rect x="2" y="3" width="12" height="10" rx="1.5" />
-              <circle cx="6" cy="7" r="1.2" />
-              <path d="M3 12l3.5-3.5 2.5 2.5 2-2 2 2" />
-            </svg>
-            <span>{title}</span>
-          </button>
-        </div>
-      ) : (
-        // 열린 상태 — 패널 창
-        <div className={`imgwin imgwin-open ${shaded ? 'shaded' : ''}`}>
-          <header className={`imgwin-bar ${movable ? 'movable' : ''}`}
-            onPointerDown={e => { if ((e.target as HTMLElement).closest('button')) return; startDrag(e); }}
-            {...dragProps}
-            onDoubleClick={e => { if (!movable || (e.target as HTMLElement).closest('button')) return; resetPos(); }}>
-            <span className="imgwin-title" data-tip={movable ? '끌어서 이동 · 더블클릭: 원위치' : undefined}>{title}</span>
-            <button className="imgwin-btn imgwin-fold" aria-label={shaded ? '펼치기' : '접기'}
-              data-tip={shaded ? '펼치기' : '접기'}
-              onClick={() => { if (!editOn) change({ shaded: !st.shaded }); }}>
-              <svg viewBox="0 0 16 16" aria-hidden><path d="M4 6l4 4 4-4" /></svg>
-            </button>
-            <button className="imgwin-btn" aria-label="창 닫기" data-tip="닫기"
-              onClick={() => { if (!editOn) change({ closed: true }); }}>
-              <svg viewBox="0 0 16 16" aria-hidden><path d="M4 4l8 8M12 4l-8 8" /></svg>
-            </button>
-          </header>
-          {!shaded && <div className="imgwin-body">{children}</div>}
-        </div>
-      )}
-    </div>
-  );
-}
+            <svg viewBox="0 0 16 16"
