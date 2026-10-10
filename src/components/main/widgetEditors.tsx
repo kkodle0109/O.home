@@ -303,6 +303,19 @@ export function DecoEditor({ conf, onClose }: { conf: WidgetConf; onClose?: () =
 
        {/* 애니메이션 — 둥실 / 살랑 / 통통 */}
       <AnimFields anim={anim} speed={animSpeed} size={animSize} onChange={p => set(p)} />
+            {/* 창 모양으로 표시 — 맥 스타일 창에 담고, 방문자가 닫고 열 수 있게 한다 */}
+      <div style={{ display: 'grid', gap: 8 }}>
+        <KCheck label="창 모양으로 표시 (방문자가 닫고 열 수 있음)" checked={!!conf.settings.win}
+          onChange={v => set({ win: v || undefined })} />
+        {!!conf.settings.win && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <KInput placeholder="창 제목" value={(conf.settings.winTitle as string) ?? ''}
+              onChange={e => set({ winTitle: e.target.value || undefined })} style={{ width: 160 }} />
+            <KCheck label="처음에는 닫힌 채로" checked={!!conf.settings.winStartClosed}
+              onChange={v => set({ winStartClosed: v || undefined })} />
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 10.5 }}
