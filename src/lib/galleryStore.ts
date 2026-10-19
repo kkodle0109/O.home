@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import type { Comment, FoldType } from './postStore';
 import type { CropValue } from '@/components/ui/CropEditor';
 import type { Visibility } from './charStore';
+import type { SecretLock } from '@/lib/secretPost';
 import { getRawSetting, setSetting } from './settingStore';
 
 /* ---------- 로드뷰 (4.10) ---------- */
@@ -46,6 +47,7 @@ export interface BackupPost {
   fold: { type: FoldType; label?: string } | null;
   /** 태그 (v2.0 사용자 요청) — 목록·카드에 나열되고 검색에 걸린다 */
   tags?: string[];
+  secret?: SecretLock;   // 비밀글 — 있으면 비밀번호가 필요한 글
 }
 
 export const BACKUP_SEED: BackupPost[] = [];
