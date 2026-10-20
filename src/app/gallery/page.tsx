@@ -17,6 +17,17 @@ import { useMenuSettings, canGalleryWrite } from '@/lib/menuStore';
 
 const FOLD_LABEL = { spoiler: '스포일러', adult: '수위 주의' };
 
+/** 비밀글 자물쇠 아이콘 */
+function LockIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden
+      style={{ stroke: 'currentColor', fill: 'none', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', flexShrink: 0 }}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
 function BackupPageInner() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
@@ -38,25 +49,21 @@ function BackupPageInner() {
   const typeBadge = (t: 'log' | 'single' | 'vlist') => boardSet.gallery.find(b => b.id === t);
   const [q, setQ] = useState('');
   const [unveiled, setUnveiled] = useState<Record<string, boolean>>({});
-
   const visible = posts
     .filter(p => isAdmin || p.visibility === 'public' || (p.visibility === 'member' && user))
     .filter(p => !q || p.title.includes(q) || p.category.includes(q)
-      || (p.tags ?? []).some(t => t.toLowerCase().includes(q.toLowerCase())));   // 태그 검색 (v2.0)
-
+      || (p.tags ?? []).some(t => t.toLowerCase().includes(q.toLowerCase()))); // 태그 검색 (v2.0)
   // 편집모드 카드 드래그 정렬 (v1.9 — 갤러리 보기)
   const sort = useCardSort(visible, next => setPosts(mergeOrder(posts, next)), editOn && isAdmin);
-
   /* 게시물이 쌓이면 페이지로 (v2.0 사용자 요청) — 보기에 따라 한 장 분량이 다르다.
      갤러리 보기는 한 줄에 3개라 12개(4줄), 리스트 보기는 글 목록과 같은 20개. */
   const PER = view === 'gal' ? 12 : 20;
   const [page, setPage] = useState(1);
   const pages = Math.max(1, Math.ceil(visible.length / PER));
-  const cur = Math.min(page, pages);      // 검색·보기 전환으로 줄면 마지막 장으로 당긴다
+  const cur = Math.min(page, pages); // 검색·보기 전환으로 줄면 마지막 장으로 당긴다
   const start = (cur - 1) * PER;
   const paged = visible.slice(start, start + PER);
-  useEffect(() => { setPage(1); }, [q, view]);   // 검색어·보기를 바꾸면 첫 장부터
-
+  useEffect(() => { setPage(1); }, [q, view]); // 검색어·보기를 바꾸면 첫 장부터
   const count = (p: BackupPost) => Math.max(p.images.length, p.phList.length);
   const meta = (p: BackupPost) =>
     `${count(p)}장 · ${fmtDate(p.madeDate ? p.madeDate + 'T00:00:00' : p.date)}`;
@@ -80,68 +87,81 @@ function BackupPageInner() {
           )}
         </div>
       </div>
-
       {/* 갤러리/리스트 모두 렌더해 두고 display로만 전환 (v1.9) —
           전환 때마다 재마운트되며 이미지가 다시 로드·등장하던 깜빡임 제거 */}
       <div className="g3" style={{ display: view === 'gal' && visible.length > 0 ? undefined : 'none' }}>
-          {paged.map((p, si) => {
-            const i = start + si;   // 정렬은 전체 기준 위치로
-            const folded = p.fold && !unveiled[p.id];
-            return (
-              <div key={p.id} className="panel g-item" {...sort(i)}
-                onClick={() => { if (!folded && !editOn) router.push(`/gallery/${p.id}`); }}>
-                <div className={`thumb ${folded ? 'veil' : ''}`}>
-                  <div style={{ position: 'absolute', inset: 0 }}>
-                    <CroppedBlobImg fileRef={p.images[0]} crop={p.thumbCrop} ph={p.phList[0] ?? 'cool'} />
-                  </div>
-                  {!folded && (
-                    <span className="typ" style={boardBadgeStyle(typeBadge(p.type))}>
-                      {typeBadge(p.type)?.label}
-                    </span>
-                  )}
-                  {folded && (
-                    <div className="cover" onClick={e => { e.stopPropagation(); setUnveiled(u => ({ ...u, [p.id]: true })); }}>
-                      <div>
-                        <b>{p.fold!.type === 'custom' ? (p.fold!.label || '접힘') : FOLD_LABEL[p.fold!.type]}</b><br />
-                        <span>클릭하여 표시</span>
-                      </div>
+        {paged.map((p, si) => {
+          const i = start + si; // 정렬은 전체 기준 위치로
+          const folded = p.fold && !unveiled[p.id];
+          // 비밀글 — 관리자가 아니면 썸네일을 숨기고 자물쇠를 보여 준다
+          const locked = !!p.secret && !isAdmin;
+          return (
+            <div key={p.id} className="panel g-item" {...sort(i)}
+              onClick={() => { if (!folded && !editOn) router.push(`/gallery/${p.id}`); }}>
+              <div className={`thumb ${folded ? 'veil' : ''}`}>
+                <div style={{ position: 'absolute', inset: 0 }}>
+                  {locked
+                    ? <div className="ph" style={{ position: 'absolute', inset: 0 }}><LockIcon size={34} /></div>
+                    : <CroppedBlobImg fileRef={p.images[0]} crop={p.thumbCrop} ph={p.phList[0] ?? 'cool'} />}
+                </div>
+                {!folded && (
+                  <span className="typ" style={boardBadgeStyle(typeBadge(p.type))}>
+                    {typeBadge(p.type)?.label}
+                  </span>
+                )}
+                {folded && (
+                  <div className="cover" onClick={e => { e.stopPropagation(); setUnveiled(u => ({ ...u, [p.id]: true })); }}>
+                    <div>
+                      <b>{p.fold!.type === 'custom' ? (p.fold!.label || '접힘') : FOLD_LABEL[p.fold!.type]}</b><br />
+                      <span>클릭하여 표시</span>
                     </div>
-                  )}
-                </div>
-                <div className="info">
-                  <b>{p.title}</b>
-                  <small>
-                    {meta(p)}
-                    {/* 태그 (v2.0 사용자 요청) */}
-                    {(p.tags ?? []).map(t => <i key={t} className="tag-in">#{t}</i>)}
-                  </small>
-                </div>
+                  </div>
+                )}
               </div>
-            );
-          })}
-        </div>
-      {/* 게시물이 없으면 컨테이너 자체를 숨김 — 빈 패널이 안내문 위에 카드처럼 남던 버그 (v1.9 사용자 발견) */}
-      <div className="panel flush" style={{ display: view === 'list' && visible.length > 0 ? undefined : 'none' }}>
-          {paged.map(p => (
-            <div key={p.id} className="list-item" onClick={() => router.push(`/gallery/${p.id}`)}>
-              <div className="th" style={{ position: 'relative' }}><CroppedBlobImg fileRef={p.images[0]} crop={p.thumbCrop} ph={p.phList[0] ?? 'cool'} /></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="info">
                 <b>
+                  {/* 비밀글 표시 */}
+                  {p.secret && <span style={{ marginRight: 5, verticalAlign: '-2px' }}><LockIcon size={13} /></span>}
                   {p.title}
-                  {p.fold
-                    ? <span className="pill red" style={{ marginLeft: 6 }}>접힘</span>
-                    : <span style={{ ...boardBadgeStyle(typeBadge(p.type)), marginLeft: 6 }}>{typeBadge(p.type)?.label}</span>}
                 </b>
                 <small>
                   {meta(p)}
-                  {/* 태그 — 작성자 왼쪽 줄에 (v2.0 사용자 요청) */}
+                  {/* 태그 (v2.0 사용자 요청) */}
                   {(p.tags ?? []).map(t => <i key={t} className="tag-in">#{t}</i>)}
                 </small>
               </div>
-              <small>{p.author}</small>
             </div>
-          ))}
-        </div>
+          );
+        })}
+      </div>
+      {/* 게시물이 없으면 컨테이너 자체를 숨김 — 빈 패널이 안내문 위에 카드처럼 남던 버그 (v1.9 사용자 발견) */}
+      <div className="panel flush" style={{ display: view === 'list' && visible.length > 0 ? undefined : 'none' }}>
+        {paged.map(p => (
+          <div key={p.id} className="list-item" onClick={() => router.push(`/gallery/${p.id}`)}>
+            <div className="th" style={{ position: 'relative' }}>
+              {/* 비밀글 — 관리자가 아니면 썸네일 대신 자물쇠 */}
+              {p.secret && !isAdmin
+                ? <div className="ph" style={{ position: 'absolute', inset: 0 }}><LockIcon size={22} /></div>
+                : <CroppedBlobImg fileRef={p.images[0]} crop={p.thumbCrop} ph={p.phList[0] ?? 'cool'} />}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <b>
+                {p.secret && <span style={{ marginRight: 5, verticalAlign: '-2px' }}><LockIcon size={13} /></span>}
+                {p.title}
+                {p.fold
+                  ? <span className="pill red" style={{ marginLeft: 6 }}>접힘</span>
+                  : <span style={{ ...boardBadgeStyle(typeBadge(p.type)), marginLeft: 6 }}>{typeBadge(p.type)?.label}</span>}
+              </b>
+              <small>
+                {meta(p)}
+                {/* 태그 — 작성자 왼쪽 줄에 (v2.0 사용자 요청) */}
+                {(p.tags ?? []).map(t => <i key={t} className="tag-in">#{t}</i>)}
+              </small>
+            </div>
+            <small>{p.author}</small>
+          </div>
+        ))}
+      </div>
       {visible.length === 0 && (
         <div className="panel" style={{ textAlign: 'center', padding: 44, fontSize: 13, color: 'var(--faint)' }}>
           게시물이 없습니다
