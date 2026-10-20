@@ -1,13 +1,14 @@
 'use client';
 // 비밀글 입력 화면 — 비밀번호를 맞추면 안쪽 내용(children)을 보여준다.
-// 잠금 정보(lock)가 없는 글이나 관리자는 그냥 통과한다.
+// 잠금 정보(lock)가 없는 글, 관리자, bypass가 true인 사람(글쓴이 등)은 그냥 통과한다.
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { SecretLock, checkLock, isUnlocked, markUnlocked } from '@/lib/secretPost';
 
-export function SecretGate({ id, lock, children }: {
+export function SecretGate({ id, lock, bypass, children }: {
   id: string;                // 글 id (한 번 푼 글을 기억하는 열쇠)
   lock?: SecretLock;         // 글에 저장된 잠금 정보 (없으면 비밀글이 아님)
+  bypass?: boolean;          // true면 비밀번호 없이 통과 (글쓴이 등)
   children: React.ReactNode;
 }) {
   const { isAdmin } = useAuth();
@@ -21,7 +22,7 @@ export function SecretGate({ id, lock, children }: {
 
   useEffect(() => { setOk(isUnlocked(id)); setChecked(true); }, [id]);
 
-  if (!lock || isAdmin) return <>{children}</>;
+  if (!lock || isAdmin || bypass) return <>{children}</>;
   if (!checked) return null;           // 이미 푼 글이 잠깐 잠겨 보이는 깜빡임 방지
   if (ok) return <>{children}</>;
 
