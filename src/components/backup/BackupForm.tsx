@@ -18,11 +18,12 @@ import { CropEditor, CropValue } from '@/components/ui/CropEditor';
 import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { useToast } from '@/components/ui/Toast';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
+import { makeLock, markUnlocked, type SecretLock } from '@/lib/secretPost';   // 비밀글
 
 interface UpFile {
   id: string; name: string; size?: number;
-  url?: string; file?: File;   // 새로 추가한 파일
-  ref?: string;                // 저장돼 있던 이미지 (수정 모드)
+  url?: string; file?: File; // 새로 추가한 파일
+  ref?: string; // 저장돼 있던 이미지 (수정 모드)
   original: boolean; crop?: CropValue;
 }
 
@@ -65,7 +66,7 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
       crop: i === 0 ? initial?.thumbCrop : undefined,
     })));
   const [desc, setDesc] = useState(initial?.desc ?? '');
-  const del = useConfirmDelete();   // 이미지 제거도 되돌릴 수 없어 경고를 거친다
+  const del = useConfirmDelete(); // 이미지 제거도 되돌릴 수 없어 경고를 거친다
   // 갤러리 말머리 — 환경설정 > 게시판 관리에서 관리 (v2.0)
   const { st: boardSet } = useBoardSettings();
   /* **수정 중이면 그 글이 속한 곳이 기준이다** (v2.0 사용자 발견 — 포크 사용자 제보).
@@ -89,6 +90,9 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
   const [visibility, setVisibility] = useState<Visibility>(initial?.visibility ?? 'public');
   const [foldType, setFoldType] = useState<FoldType | 'none'>(initial?.fold?.type ?? 'none');
   const [foldLabel, setFoldLabel] = useState(initial?.fold?.label ?? '');
+  // 비밀글 — 켜면 비밀번호를 입력해야 글을 볼 수 있다 (수정 중 비밀번호를 비워 두면 기존 비밀번호 유지)
+  const [secretOn, setSecretOn] = useState(!!initial?.secret);
+  const [secretPw, setSecretPw] = useState('');
   const [cropFor, setCropFor] = useState<UpFile | null>(null);
 
   if (!user) {
@@ -98,7 +102,6 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
       </section>
     );
   }
-
   /* 갤러리 글쓰기 권한 (v2.0 사용자 요청) — WRITE 버튼과 같은 판정으로 주소 직접 진입도 막는다.
      새 글만이다 — 이미 쓴 자기 글의 수정·삭제는 지금까지처럼 본인(과 관리자) 몫.
      설정을 읽기 전에는 폼을 그리지 않는다 — 먼저 그리면 막힐 사람에게 폼이 한 번 비친다 */
@@ -123,6 +126,15 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
 
   const post = async () => {
     if (!title.trim()) { toast('제목을 입력해 주세요'); return; }
+
+    // 비밀글 — 비밀번호로 잠금 정보를 만든다 (비밀번호 원문은 저장하지 않는다)
+    let secret: SecretLock | undefined;
+    if (secretOn) {
+      if (secretPw) secret = await makeLock(secretPw);
+      else if (initial?.secret) secret = initial.secret;   // 수정 중 비워 두면 기존 비밀번호 유지
+      else { toast('비밀글 비밀번호를 입력해 주세요'); return; }
+    }
+
     // 이미지 실저장 (IndexedDB) — 기존 ref는 유지, 새 파일만 저장
     const imageIds = await Promise.all(files.map(f => (f.file ? putBlob(f.file) : Promise.resolve(f.ref!))));
     if (isNew) {
@@ -134,8 +146,10 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
         date: new Date().toISOString(), author: user.nickname, authorId: user.id,
         visibility,
         fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
+        secret, // 비밀글
       };
       setPosts([{ ...p, ...secStamp(sec.id) }, ...posts]);
+      if (secret) markUnlocked(p.id); // 방금 쓴 글은 바로 볼 수 있게 (비밀번호를 또 묻지 않음)
       toast('등록되었습니다 — 이미지는 이 브라우저에 실제 저장됩니다');
       router.push(`/gallery/${p.id}`);
     } else {
@@ -145,7 +159,9 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
         thumbCrop: files[0]?.crop,
         desc, category, tags: parseTags(tagsText), madeDate: madeDate || undefined, visibility,
         fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
+        secret, // 비밀글 (체크를 끄면 비밀글이 풀린다)
       } : x));
+      if (secret) markUnlocked(initial.id);
       toast('저장되었습니다');
       router.push(`/gallery/${initial.id}`);
     }
@@ -259,6 +275,23 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
               {foldType === 'custom' && <KInput placeholder="접기 문구" value={foldLabel} onChange={e => setFoldLabel(e.target.value)} />}
             </div>
           </div>
+          {/* 비밀글 — 비밀번호를 입력해야 글을 볼 수 있다 */}
+          <div className="panel widget" style={{ marginBottom: 14 }}>
+            <h4>비밀글</h4>
+            <div style={{ display: 'grid', gap: 9 }}>
+              <KCheck label="비밀번호를 입력해야 볼 수 있게" checked={secretOn} onChange={setSecretOn} />
+              {secretOn && (
+                <>
+                  <input className="k-input" type="password" autoComplete="new-password"
+                    value={secretPw} onChange={e => setSecretPw(e.target.value)}
+                    placeholder={initial?.secret ? '비워 두면 기존 비밀번호 유지' : '비밀번호'} />
+                  <p className="hint" style={{ margin: 0 }}>
+                    관리자는 비밀번호 없이 볼 수 있습니다. 비밀번호를 잊으면 복구할 수 없고, 글을 수정해서 새로 정해야 합니다
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
           <div className="form-actions">
             <button className="btn btn-onbk"
               onClick={() => router.push(isNew ? tt.href : `/gallery/${initial.id}`)}>CANCEL</button>
@@ -268,7 +301,6 @@ export function BackupForm({ initial }: { initial: BackupPost | null }) {
           </div>
         </div>
       </div>
-
       {del.element}
       {cropFor && (
         <CropModal f={cropFor}
