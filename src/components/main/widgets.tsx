@@ -215,7 +215,7 @@ export function LatestWidget() {
     // 갤러리 — 전체공개 + 접기 없는 게시물의 대표(첫) 이미지
     ...(seeGal ? backups : [])
       .filter(p => canViewHref(menuSet, sectionHref('gallery', p.secId ?? MAIN_SEC), viewer))
-      .filter(p => p.visibility === 'public' && !p.fold).map(p => ({
+       .filter(p => p.visibility === 'public' && !p.fold && !p.secret).map(p => ({
       id: `b-${p.id}`, date: p.date, ref: p.images[0], ph: p.phList[0] ?? 'cool',
       href: `/gallery/${p.id}`, tip: `갤러리 · ${p.title}`,
     })),
