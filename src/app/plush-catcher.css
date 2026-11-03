@@ -104,4 +104,6 @@
 /* ===== 메인 화면 위젯으로 놓았을 때 ===== */
 .pc-widget { width: 100%; }
 /* 편집모드에서는 기계가 눌리지 않게 — 위젯을 옮기고 우클릭할 때 크레인이 작동하면 곤란하다 */
-body.edit-on .pc-machine, body.edit-on .pc-tabs { pointer-events: none; }
+body.edit-on .pc-machine {
+  pointer-events: none;
+}
