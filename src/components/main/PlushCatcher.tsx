@@ -113,7 +113,7 @@ export function PlushCatcher({ settings }: { settings: CatcherSettings }) {
   const color = settings.color || '#a63a45';
   const sound = settings.sound ?? true;
   const slip = Math.min(1, Math.max(0, settings.slip ?? 0.2));
-  const dollRefs = (settings.dolls ?? []).slice(0, 2);
+  const dollRefs = (settings.dolls ?? []).slice(0, 10);
   const imgCount = dollRefs.length || TONES.length;
   const refOf = (img: number) => (dollRefs.length ? dollRefs[img % dollRefs.length] : undefined);
   const cat = settings.category?.trim();
