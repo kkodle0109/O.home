@@ -30,7 +30,10 @@ export function CatcherEditor({ value, onSave, onClose }: {
   const del = useConfirmDelete();   // 삭제는 언제나 경고를 거친다
   const [d, setD] = useState<CatcherSettings>({ ...value });
   const dolls = d.dolls ?? [];
-  const inputId = 'pcDollFiles';
+const prizes = d.prizes ?? [];
+
+const inputId = 'pcDollFiles';
+const prizeInputId = 'pcPrizeFiles';
 
   const addFiles = async (list: FileList | null) => {
     // input.files는 라이브 목록이라 await 전에 바로 복사해 둔다
@@ -44,6 +47,35 @@ export function CatcherEditor({ value, onSave, onClose }: {
     for (const f of use) ids.push(await putBlob(f));
     setD(v => ({ ...v, dolls: [...(v.dolls ?? []), ...ids] }));
   };
+  const addPrizeFiles = async (list: FileList | null) => {
+  const files = Array.from(list ?? []);
+
+  if (!files.length) return;
+
+  const room = MAX_DOLLS - (d.prizes ?? []).length;
+
+  if (room <= 0) {
+    toast(`상품 이미지는 최대 ${MAX_DOLLS}장까지입니다`);
+    return;
+  }
+
+  const use = files.slice(0, room);
+  const ids: string[] = [];
+
+  for (const f of use) {
+    if (!f.type.startsWith('image/')) {
+      toast('이미지 파일만 등록할 수 있습니다.');
+      return;
+    }
+
+    ids.push(await putBlob(f));
+  }
+
+  setD(v => ({
+    ...v,
+    prizes: [...(v.prizes ?? []), ...ids],
+  }));
+};
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -68,6 +100,58 @@ export function CatcherEditor({ value, onSave, onClose }: {
           용량이 큰 이미지는 불러오기가 느려지니 가로 300~500px 정도가 좋아요
         </p>
       </div>
+      <div>
+  <label className="k-label">
+    당첨 상품 이미지 ({prizes.length}/{MAX_DOLLS})
+  </label>
+
+  <input
+    id={prizeInputId}
+    type="file"
+    accept="image/*"
+    multiple
+    style={{ display: 'none' }}
+    onChange={e => {
+      void addPrizeFiles(e.target.files);
+      e.target.value = '';
+    }}
+  />
+
+  <div className="pc-thumbs">
+    {prizes.map((r, i) => (
+      <Thumb
+        key={`${r}-${i}`}
+        refId={r}
+        onRemove={() =>
+          del.ask(
+            `${i + 1}번째 상품 이미지를 삭제할까요?`,
+            () => setD(v => ({
+              ...v,
+              prizes: (v.prizes ?? []).filter((_, j) => j !== i),
+            }))
+          )
+        }
+      />
+    ))}
+
+    {prizes.length < MAX_DOLLS && (
+      <button
+        className="pc-thumb pc-add"
+        aria-label="상품 이미지 추가"
+        onClick={() =>
+          document.getElementById(prizeInputId)?.click()
+        }
+      >
+        ＋
+      </button>
+    )}
+  </div>
+
+  <p className="hint">
+    인형 이미지와 같은 순서로 상품 이미지를 등록해 주세요.
+    인형 하나마다 상품 이미지 하나가 연결됩니다.
+  </p>
+</div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="cp-lb">뽑을 글의 말머리</span>
@@ -98,7 +182,19 @@ export function CatcherEditor({ value, onSave, onClose }: {
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button className="btn btn-ghost" onClick={onClose}>CANCEL</button>
-        <button className="btn btn-dark" onClick={() => onSave(d)}>SAVE</button>
+      <button
+  className="btn btn-dark"
+  onClick={() => {
+    if (dolls.length !== prizes.length) {
+      toast('인형 이미지와 상품 이미지의 개수를 맞춰 주세요.');
+      return;
+    }
+
+    onSave(d);
+  }}
+>
+  SAVE
+</button>
       </div>
       {del.element}
     </div>
