@@ -1,0 +1,101 @@
+/* ===== 인형뽑기 (PlushCatcher) ===== */
+.pc-wrap { --pc-color: #a63a45; --pc-dur: .9s; display: grid; gap: 12px; width: 100%; }
+
+/* 기계 몸통 */
+.pc-machine {
+  position: relative; padding: 10px 10px 14px;
+  border-radius: var(--radius); background: var(--pc-color);
+  box-shadow: var(--sh-md); outline: none;
+}
+.pc-machine:focus-visible { box-shadow: var(--focus-ring, 0 0 0 3px rgba(255,255,255,.4)); }
+.pc-title {
+  text-align: center; color: #fff; font-size: calc(11px * var(--fs, 1)); font-weight: 700;
+  letter-spacing: .32em; text-indent: .32em; padding: 2px 0 8px;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+
+/* 유리창 — 안쪽 크기는 창 폭(cqw)을 기준으로 맞춘다 */
+.pc-glass {
+  position: relative; width: 100%; aspect-ratio: 10 / 11; overflow: hidden;
+  container-type: size;
+  border-radius: calc(var(--radius) * .7);
+  background: linear-gradient(#fbfcfd, #e3e7ec);
+  box-shadow: inset 0 0 0 3px rgba(255,255,255,.75), inset 0 0 0 5px rgba(0,0,0,.14);
+}
+.pc-rail { position: absolute; left: 0; right: 0; top: 0; height: 5cqw; background: rgba(0,0,0,.14); }
+
+/* 크레인 — 직접 움직일 때는 바로, 자동 운반 중에는 천천히 */
+.pc-claw { position: absolute; top: 0; bottom: 0; width: 0; z-index: 3; transition: left .05s linear; }
+.pc-glass.auto .pc-claw { transition: left var(--pc-dur) ease-in-out; }
+.pc-rope {
+  position: absolute; left: -1px; top: 0; width: 2px; background: #555;
+  transition: height var(--pc-dur) ease-in-out;
+}
+.pc-head {
+  position: absolute; left: 0; width: 14cqw; height: 6cqw;
+  transform: translate(-50%, -3cqw);
+  background: #3a3f47; border-radius: 6px;
+  transition: top var(--pc-dur) ease-in-out;
+}
+.pc-prong {
+  position: absolute; top: 100%; width: 3cqw; height: 11cqw; margin-top: -1cqw;
+  background: #3a3f47; border-radius: 0 0 3px 3px;
+  transform-origin: 50% 0; transition: transform .35s;
+}
+.pc-prong.l { left: .5cqw; }
+.pc-prong.r { right: .5cqw; }
+.pc-head .pc-prong.l { transform: rotate(-14deg); }       /* 닫힘 */
+.pc-head .pc-prong.r { transform: rotate(14deg); }
+.pc-head.open .pc-prong.l { transform: rotate(32deg); }   /* 벌어짐 */
+.pc-head.open .pc-prong.r { transform: rotate(-32deg); }
+.pc-held { position: absolute; left: 50%; top: 7cqw; width: 17cqw; transform: translateX(-50%); pointer-events: none; }
+
+/* 인형 */
+.pc-doll {
+  position: absolute; bottom: 3%; width: 17cqw; transform: translateX(-50%);
+  pointer-events: none; filter: drop-shadow(0 3px 2px rgba(0,0,0,.25));
+}
+.pc-doll-img { display: block; width: 100%; height: auto; max-height: 20cqw; object-fit: contain; }
+
+/* 출구 */
+.pc-chute {
+  position: absolute; left: 0; bottom: 0; width: 20%; height: 22%;
+  display: grid; place-items: end center;
+  background: linear-gradient(135deg, rgba(0,0,0,.35), rgba(0,0,0,.12));
+  border-top-right-radius: 14px;
+}
+.pc-chute span { font-size: calc(9px * var(--fs, 1)); letter-spacing: .2em; color: #fff; font-weight: 700; padding-bottom: 4px; }
+
+/* 조작 버튼 */
+.pc-ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
+.pc-btn {
+  width: 46px; height: 46px; border-radius: 50%; background: #fff; color: #222; font-size: 15px;
+  display: grid; place-items: center; box-shadow: 0 3px 0 rgba(0,0,0,.28);
+  touch-action: none; user-select: none; cursor: var(--cur-pointer, pointer);
+}
+.pc-grab {
+  flex: 1; max-width: 150px; height: 46px; border-radius: 999px; background: #fff; color: var(--pc-color);
+  font-size: calc(12px * var(--fs, 1)); font-weight: 800; letter-spacing: .28em; text-indent: .28em;
+  box-shadow: 0 3px 0 rgba(0,0,0,.28); cursor: var(--cur-pointer, pointer);
+}
+.pc-btn:active, .pc-grab:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.28); }
+.pc-ctrl button:disabled { opacity: .5; pointer-events: none; }
+.pc-msg { min-height: 1.5em; margin-top: 10px; text-align: center; color: #fff; font-size: calc(11.5px * var(--fs, 1)); letter-spacing: .06em; }
+
+/* 아래 탭 (글 목록 / 방법 / 안내) */
+.pc-tabs { display: grid; gap: 8px; }
+.pc-tabs .mini-seg { justify-self: start; }
+.pc-panel {
+  background: var(--panel); border-radius: var(--radius); box-shadow: var(--sh-sm);
+  padding: 14px 16px; font-size: calc(12.5px * var(--fs, 1)); line-height: 1.75; color: var(--ink);
+  max-height: 240px; overflow: auto; white-space: pre-line;
+}
+.pc-item {
+  display: flex; justify-content: space-between; gap: 10px; padding: 7px 0;
+  border-bottom: 1px dashed var(--line); cursor: var(--cur-pointer, pointer); white-space: normal;
+}
+.pc-item:last-child { border-bottom: none; }
+.pc-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-item small { color: var(--faint); flex-shrink: 0; font-size: calc(10.5px * var(--fs, 1)); }
+.pc-item:hover span { color: var(--accent); }
+.pc-empty { color: var(--faint); }
