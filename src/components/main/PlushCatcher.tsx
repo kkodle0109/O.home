@@ -1,26 +1,18 @@
 'use client';
 // 인형뽑기 — 크레인을 좌우로 옮겨 인형을 뽑으면 사이트의 갤러리 글 하나가 랜덤으로 나온다.
 // 인형 이미지·기계 색·효과음·안내 문구는 settings로 바꾼다 (위젯으로 등록하면 설정창에서 지정).
+'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
-import { useLocalList, fmtDate } from '@/lib/postStore';
-import { BackupPost, BACKUP_SEED } from '@/lib/galleryStore';
-import { useMenuSettings, canViewHref } from '@/lib/menuStore';
-import { sectionHref, MAIN_SEC } from '@/lib/sectionStore';
 import { useBlobUrl } from '@/lib/blobStore';
-import { CroppedBlobImg } from '@/components/ui/CropEditor';
 import { Modal } from '@/components/ui/Modal';
 
 export interface CatcherSettings {
-  category?: string;    // 뽑기에 나올 갤러리 말머리 (비우면 전체)
-  dolls?: string[];     // 인형 이미지 (저장된 파일 id, 최대 2장 — 투명 배경 PNG 권장)
-  color?: string;       // 기계 색
-  sound?: boolean;      // 효과음 (기본 켬)
-  slip?: number;        // 올라가다 놓칠 확률 0~1 (기본 0.2)
-  howTo?: string;       // HOW TO 문구
-  infoTitle?: string;   // INFO 제목
-  infoText?: string;    // INFO 내용
+  export interface CatcherSettings {
+  dolls?: string[];
+  prizes?: string[];
+  color?: string;
+  sound?: boolean;
+  slip?: number;
 }
 
 type Doll = { id: number; x: number; img: number };
@@ -35,9 +27,6 @@ const DOLL_COUNT = 5;
 const HEAD_TOP = 8;              // 크레인 머리의 기본 높이(%)
 const REACH = 66;                // 바닥까지 내려가는 거리(%)
 const TONES = ['#f2b8c6', '#b9d6f2', '#f6e3a1', '#c9e4c5'];
-const DEFAULT_HOW =
-  '◀ ▶ 버튼(또는 키보드 방향키)으로 크레인을 움직이고 GRAB을 눌러 인형을 뽑아 보세요.\n'
-  + '인형을 출구까지 옮기면 이 사이트의 글 하나를 선물로 드려요. 가끔은 놓치기도 해요!';
 
 let dollSeq = 1;
 /** 겹치지 않는 자리에 인형 하나를 만든다 */
@@ -105,29 +94,18 @@ function DollArt({ refId, idx }: { refId?: string; idx: number }) {
 }
 
 export function PlushCatcher({ settings }: { settings: CatcherSettings }) {
-  const router = useRouter();
-  const { user, isAdmin } = useAuth();
-  const [menuSet] = useMenuSettings();
-  const [posts] = useLocalList<BackupPost>('ohome.backup.v1', BACKUP_SEED);
-
   const color = settings.color || '#a63a45';
   const sound = settings.sound ?? true;
   const slip = Math.min(1, Math.max(0, settings.slip ?? 0.2));
   const dollRefs = (settings.dolls ?? []).slice(0, 10);
-  const imgCount = dollRefs.length || TONES.length;
-  const refOf = (img: number) => (dollRefs.length ? dollRefs[img % dollRefs.length] : undefined);
+const prizeRefs = (settings.prizes ?? []).slice(0, 10);
+
+const imgCount = dollRefs.length || TONES.length;
+
+const refOf = (img: number) =>
+  dollRefs.length ? dollRefs[img % dollRefs.length] : undefined;
   const cat = settings.category?.trim();
-
-  // 뽑을 수 있는 글 — 전체공개 · 접기 없음 · 비밀글 아님 · 비공개 메뉴 제외
-  const viewer = { loggedIn: !!user, isAdmin, id: user?.id };
-  const seeGallery = canViewHref(menuSet, '/gallery', viewer);
-  const pool = seeGallery
-    ? posts
-      .filter(p => p.visibility === 'public' && !p.fold && !p.secret)
-      .filter(p => canViewHref(menuSet, sectionHref('gallery', p.secId ?? MAIN_SEC), viewer))
-      .filter(p => !cat || p.category === cat)
-    : [];
-
+  
   const [x, setX] = useState(50);
   const [reach, setReach] = useState(0);        // 0 = 위, 1 = 바닥
   const [open, setOpen] = useState(true);       // 집게가 벌어졌는지
@@ -135,13 +113,12 @@ export function PlushCatcher({ settings }: { settings: CatcherSettings }) {
   const [dolls, setDolls] = useState<Doll[]>([]);
   const [phase, setPhase] = useState<Phase>('idle');
   const [msg, setMsg] = useState('');
-  const [prize, setPrize] = useState<BackupPost | null>(null);
-  const [tab, setTab] = useState<'prize' | 'how' | 'info'>('prize');
+  const [prize, setPrize] = useState<string | null>(null);
+  const prizeUrl = useBlobUrl(prize ?? undefined);
 
   const xRef = useRef(50);
   const moveRef = useRef<number | null>(null);
   const alive = useRef(true);
-  const lastPrize = useRef<string | null>(null);
   const beep = useBeep(sound);
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -169,15 +146,6 @@ export function PlushCatcher({ settings }: { settings: CatcherSettings }) {
     step();
     beep(620, 0.03, 'square', 0.02);
     moveRef.current = window.setInterval(step, 28);
-  };
-
-  const pickPrize = (): BackupPost | null => {
-    if (!pool.length) return null;
-    const rnd = () => pool[Math.floor(Math.random() * pool.length)];
-    let p = rnd();
-    for (let g = 0; pool.length > 1 && p.id === lastPrize.current && g < 8; g++) p = rnd();
-    lastPrize.current = p.id;
-    return p;
   };
 
   const grab = async () => {
@@ -245,10 +213,14 @@ export function PlushCatcher({ settings }: { settings: CatcherSettings }) {
     setDolls(ds => { const d = makeDoll(ds, imgCount); return d ? [...ds, d] : ds; });  // 새 인형 보충
     await wait(500); if (!alive.current) return;
     setOpen(false);
-    const pz = pickPrize();
-    if (pz) setPrize(pz);
-    else setMsg('지금은 뽑을 수 있는 글이 없어요');
-    setPhase('idle');
+    const selectedPrize = prizeRefs[target.img];
+if (selectedPrize) {
+  setPrize(selectedPrize);
+} else {
+  setMsg('이 인형에는 상품 이미지가 등록되지 않았어요.');
+}
+
+setPhase('idle');
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -296,14 +268,6 @@ export function PlushCatcher({ settings }: { settings: CatcherSettings }) {
         <div className="pc-msg">{msg}</div>
       </div>
 
-      <div className="pc-tabs">
-        <div className="mini-seg">
-          {(['prize', 'how', 'info'] as const).map(t => (
-            <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
-              {t === 'prize' ? 'PRIZES' : t === 'how' ? 'HOW TO' : 'INFO'}
-            </button>
-          ))}
-        </div>
         <div className="pc-panel">
           {tab === 'prize' && (
             pool.length === 0
@@ -324,25 +288,42 @@ export function PlushCatcher({ settings }: { settings: CatcherSettings }) {
         </div>
       </div>
 
-      <Modal open={!!prize} onClose={() => setPrize(null)} small title="PRIZE!" desc="이번에 뽑은 선물이에요"
-        actions={<>
-          <button className="btn btn-ghost" onClick={() => setPrize(null)}>CLOSE</button>
-          <button className="btn btn-dark" onClick={() => {
-            const id = prize?.id;
-            setPrize(null);
-            if (id) router.push(`/gallery/${id}`);
-          }}>보러 가기</button>
-        </>}>
-        {prize && (
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 10, overflow: 'hidden' }}>
-              <CroppedBlobImg fileRef={prize.images[0]} crop={prize.thumbCrop} ph={prize.phList[0] ?? 'cool'} />
-            </div>
-            <b style={{ fontSize: 15 }}>{prize.title}</b>
-            <small style={{ color: 'var(--faint)' }}>{prize.category} · {fmtDate(prize.date)}</small>
-          </div>
-        )}
-      </Modal>
+      <Modal
+  open={!!prize}
+  onClose={() => setPrize(null)}
+  small
+  title="PRIZE!"
+  desc="직접 뽑은 상품이에요!"
+  actions={
+    <button
+      className="btn btn-dark"
+      onClick={() => setPrize(null)}
+    >
+      CLOSE
+    </button>
+  }
+>
+  {prizeUrl && (
+    <div
+      style={{
+        width: '100%',
+        borderRadius: 10,
+        overflow: 'hidden',
+      }}
+    >
+      <img
+        src={prizeUrl}
+        alt="당첨 상품"
+        style={{
+          display: 'block',
+          width: '100%',
+          height: 'auto',
+          objectFit: 'contain',
+        }}
+      />
+    </div>
+  )}
+</Modal>
     </div>
   );
 }
