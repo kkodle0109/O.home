@@ -99,3 +99,22 @@
 .pc-item small { color: var(--faint); flex-shrink: 0; font-size: calc(10.5px * var(--fs, 1)); }
 .pc-item:hover span { color: var(--accent); }
 .pc-empty { color: var(--faint); }
+
+/* ===== 인형 이미지 등록 (설정창) ===== */
+.pc-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-thumb {
+  position: relative; width: 64px; height: 64px; border-radius: 9px; overflow: hidden;
+  border: 1.5px solid var(--line);
+  background: var(--checker, repeating-conic-gradient(#c8ccd2 0% 25%, #fff 0% 50%)) 0 0 / 12px 12px; /* 투명한 곳이 보이게 */
+}
+.pc-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.pc-thumb-x {
+  position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(0,0,0,.6); color: #fff; font-size: 10px;
+  display: grid; place-items: center; cursor: var(--cur-pointer, pointer);
+}
+.pc-add {
+  display: grid; place-items: center; border-style: dashed; background: transparent;
+  color: var(--faint); font-size: 22px; cursor: var(--cur-pointer, pointer);
+}
+.pc-add:hover { color: var(--ink); border-color: var(--steel-3); }
