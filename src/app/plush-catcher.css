@@ -82,23 +82,6 @@
 .pc-ctrl button:disabled { opacity: .5; pointer-events: none; }
 .pc-msg { min-height: 1.5em; margin-top: 10px; text-align: center; color: #fff; font-size: calc(11.5px * var(--fs, 1)); letter-spacing: .06em; }
 
-/* 아래 탭 (글 목록 / 방법 / 안내) */
-.pc-tabs { display: grid; gap: 8px; }
-.pc-tabs .mini-seg { justify-self: start; }
-.pc-panel {
-  background: var(--panel); border-radius: var(--radius); box-shadow: var(--sh-sm);
-  padding: 14px 16px; font-size: calc(12.5px * var(--fs, 1)); line-height: 1.75; color: var(--ink);
-  max-height: 240px; overflow: auto; white-space: pre-line;
-}
-.pc-item {
-  display: flex; justify-content: space-between; gap: 10px; padding: 7px 0;
-  border-bottom: 1px dashed var(--line); cursor: var(--cur-pointer, pointer); white-space: normal;
-}
-.pc-item:last-child { border-bottom: none; }
-.pc-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc-item small { color: var(--faint); flex-shrink: 0; font-size: calc(10.5px * var(--fs, 1)); }
-.pc-item:hover span { color: var(--accent); }
-.pc-empty { color: var(--faint); }
 
 /* ===== 인형 이미지 등록 (설정창) ===== */
 .pc-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
