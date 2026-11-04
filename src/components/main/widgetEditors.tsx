@@ -174,6 +174,11 @@ export function TodoEditor({ conf }: { conf: WidgetConf }) {
   );
 }
 
+{type: 'fishing',
+  title: '바다 낚시 위젯',
+  icon: '🎣',
+  description: '낚싯대를 던져 물고기를 잡고 소시금을 모으는 미니게임 위젯입니다.'}
+
 /* (v1.9) 이미지 위젯은 장식 이미지(deco — 업로드·크롭·링크)로 일원화되어 제거됨 */
 
 /* ---------- 장식 이미지 — settings: slides[] / interval / rounded / fit ----------
