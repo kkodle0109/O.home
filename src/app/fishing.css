@@ -1,0 +1,147 @@
+/* ===== 낚시 연못 (FishingWidget) — 클래스는 전부 fw- 로 시작 ===== */
+.fw-widget { width: 100%; }
+.fw-wrap {
+  width: 100%; overflow: hidden; border-radius: var(--radius);
+  background: var(--panel, #f8f6ef); box-shadow: var(--sh-md);
+  user-select: none;
+}
+.fw-wrap * { box-sizing: border-box; }
+
+.fw-head { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.fw-kicker { font-size: calc(8px * var(--fs, 1)); letter-spacing: .2em; color: var(--faint); }
+.fw-title { display: block; font-size: calc(13px * var(--fs, 1)); color: var(--ink); }
+
+/* 연못 */
+.fw-pond {
+  position: relative; width: 100%; aspect-ratio: 300 / 245; overflow: hidden;
+  background: linear-gradient(#c7dfe5 0 38%, #79a3aa 38% 100%);
+  background-size: cover; background-position: center;
+}
+.fw-pond::before {
+  content: ""; position: absolute; left: -10%; right: -10%; top: 32%; height: 16%;
+  border-radius: 50%; background: rgba(255,255,255,.25); filter: blur(8px);
+}
+.fw-moon {
+  position: absolute; right: 11%; top: 10%; width: 11%; aspect-ratio: 1; border-radius: 50%;
+  background: rgba(255,250,220,.75); box-shadow: 0 0 25px rgba(255,250,220,.35);
+}
+.fw-water { position: absolute; height: 1px; background: rgba(255,255,255,.3); animation: fwdrift 4s ease-in-out infinite alternate; }
+.fw-water.a { width: 30%; left: 7%; top: 49%; }
+.fw-water.b { width: 37%; right: 3%; top: 63%; animation-delay: -1.2s; }
+.fw-water.c { width: 25%; left: 30%; top: 80%; animation-delay: -2.2s; }
+@keyframes fwdrift { to { transform: translateX(20px); } }
+.fw-shadow {
+  position: absolute; width: 16%; height: 5%; border-radius: 70% 30% 70% 30%;
+  background: rgba(20,60,65,.14); animation: fwswim 8s ease-in-out infinite alternate;
+}
+.fw-shadow.a { left: 8%; top: 67%; }
+.fw-shadow.b { right: 13%; top: 84%; animation-delay: -3s; }
+@keyframes fwswim { to { transform: translateX(80px) translateY(8px); } }
+
+/* 찌 */
+.fw-bobwrap { position: absolute; left: 55%; top: 20%; width: 17%; height: 61%; transform: translateX(-50%); opacity: .28; transition: opacity .2s; }
+.fw-bobwrap.on { opacity: 1; }
+.fw-line { position: absolute; left: 50%; top: 0; width: 1px; height: 58%; background: rgba(40,40,40,.55); }
+.fw-bob {
+  position: absolute; left: 36%; top: 54%; width: 26%; height: 17%; border-radius: 50%;
+  background: linear-gradient(#f7efe3 0 48%, #5c4c47 48%); animation: fwbob 2.3s ease-in-out infinite;
+}
+.fw-bob.bite { animation: fwbite .17s ease-in-out infinite; }
+@keyframes fwbob { 50% { transform: translateY(4px); } }
+@keyframes fwbite { 50% { transform: translateY(11px) rotate(-5deg); } }
+.fw-ripple {
+  position: absolute; left: 50%; top: 73%; width: 68%; height: 7%; transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,255,255,.35); border-radius: 50%;
+}
+
+/* 입질 */
+.fw-bite {
+  position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%); text-align: center;
+  color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.3); pointer-events: none;
+}
+.fw-bite strong { display: block; font-size: 36px; }
+.fw-bite span { font-size: calc(11px * var(--fs, 1)); font-weight: 700; }
+
+/* 하단 패널 */
+.fw-panel {
+  position: absolute; left: 4%; right: 4%; bottom: 5%; padding: 12px; border-radius: 15px;
+  background: rgba(250,248,242,.9); text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,.12);
+}
+.fw-panel p { min-height: 16px; margin: 0 0 8px; font-size: calc(11px * var(--fs, 1)); color: var(--sub); }
+.fw-primary {
+  border: 0; border-radius: 999px; background: #292d31; color: #fff; padding: 9px 16px;
+  font-size: calc(11px * var(--fs, 1)); cursor: var(--cur-pointer, pointer);
+}
+.fw-primary:disabled { opacity: .4; pointer-events: none; }
+
+.fw-foot { display: flex; justify-content: space-between; padding: 10px 14px; font-size: calc(10.5px * var(--fs, 1)); color: var(--sub); }
+.fw-link { border: 0; background: none; text-decoration: underline; color: inherit; cursor: var(--cur-pointer, pointer); }
+
+/* 낚은 결과 */
+.fw-result { text-align: center; }
+.fw-result-icon {
+  width: 105px; height: 105px; margin: 4px auto 12px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 28px; background: #fff; font-size: 50px; overflow: hidden;
+}
+.fw-result-icon img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.fw-rarity { font-size: 9px; letter-spacing: .15em; color: var(--faint); margin: 0; }
+.fw-result h3 { margin: 6px 0; }
+.fw-desc { font-size: 13px; line-height: 1.7; color: var(--sub); margin: 0 0 8px; }
+
+/* 도감 */
+.fw-progress { margin-bottom: 12px; }
+.fw-track { height: 7px; background: rgba(0,0,0,.1); border-radius: 999px; overflow: hidden; }
+.fw-track i { display: block; height: 100%; background: #292d31; transition: width .3s; }
+.fw-progress p { text-align: right; font-size: 10px; color: var(--faint); margin: 4px 0 0; }
+.fw-dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.fw-dex-item {
+  min-height: 104px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.65);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 8px;
+}
+.fw-dex-item.locked { opacity: .5; }
+.fw-di { font-size: 28px; margin: 5px 0; display: grid; place-items: center; }
+.fw-di img { width: 42px; height: 42px; object-fit: contain; }
+.fw-dn { font-size: 10px; font-weight: 700; }
+.fw-dr, .fw-no { font-size: 8px; color: var(--faint); }
+.fw-reset {
+  display: block; margin: 16px auto 0; border: 0; background: none; text-decoration: underline;
+  color: var(--faint); font-size: 10px; cursor: var(--cur-pointer, pointer);
+}
+
+/* ===== 설정창 ===== */
+.fw-tabs { display: flex; gap: 6px; }
+.fw-tabs button {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px;
+  font-size: 11.5px; cursor: var(--cur-pointer, pointer);
+}
+.fw-tabs button.on { background: var(--btn-dark, var(--ink)); color: #fff; border-color: transparent; }
+.fw-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.fw-bgprev {
+  width: 96px; height: 64px; border-radius: 9px; border: 1.5px solid var(--line);
+  background: linear-gradient(#c7dfe5 0 38%, #79a3aa 38% 100%) center / cover;
+  display: grid; place-items: center; color: #fff; font-size: 10px; text-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.fw-items { display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
+.fw-items aside { border-right: 1px solid var(--line); padding-right: 12px; }
+.fw-add {
+  width: 100%; border: 1px dashed var(--line); background: #fff; border-radius: 10px; padding: 9px;
+  font-size: 12px; cursor: var(--cur-pointer, pointer);
+}
+.fw-itemlist { margin-top: 8px; display: grid; gap: 2px; max-height: 340px; overflow: auto; }
+.fw-itembtn {
+  width: 100%; display: flex; gap: 8px; align-items: center; border: 0; background: transparent;
+  padding: 7px; border-radius: 10px; text-align: left; cursor: var(--cur-pointer, pointer);
+}
+.fw-itembtn.on { background: rgba(0,0,0,.06); }
+.fw-itembtn .thumb { width: 34px; height: 34px; border-radius: 9px; background: #fff; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; }
+.fw-itembtn .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.fw-itembtn b { display: block; font-size: 11.5px; }
+.fw-itembtn small { color: var(--faint); font-size: 9.5px; }
+.fw-preview { width: 48px; height: 48px; border: 1px solid var(--line); border-radius: 12px; background: #fff; display: grid; place-items: center; font-size: 24px; overflow: hidden; }
+.fw-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+@media (max-width: 650px) {
+  .fw-dex-grid { grid-template-columns: repeat(3, 1fr); }
+  .fw-items { grid-template-columns: 1fr; }
+  .fw-items aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 12px; }
+}

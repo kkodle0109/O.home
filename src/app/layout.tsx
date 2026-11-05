@@ -3,6 +3,7 @@ import './globals.css';
 import "./widget-anim.css";
 import "./image-window.css";
 import "./plush-catcher.css";  
+import "./fishing.css";
 import { ThemeProvider } from '@/lib/ThemeProvider';
 import { AuthProvider } from '@/lib/auth';
 import { MainStoreProvider } from '@/lib/mainStore';
