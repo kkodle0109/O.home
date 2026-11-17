@@ -1,0 +1,31 @@
+/* ===== 캐릭터 말풍선 (CharTalkWidget) — 클래스는 전부 ct- 로 시작 ===== */
+@import url('https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css');
+.ct-widget { width: 100%; }
+.ct-wrap {
+  --ct-char: 120px; --ct-bubw: 180px; --ct-font: 14px; --ct-area: 210px;
+  --ct-ink: #37324a; --ct-text: #37324a; --ct-bubble: #fff; --ct-radius: 18px; --ct-tail: 14px; --ct-spd: .32s;
+  width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center;
+  color: var(--ct-text); font: var(--ct-font) / 1.8 'Galmuri14', 'Galmuri11', monospace;
+}
+.ct-wrap * { box-sizing: border-box; }
+.ct-bubbles { width: 100%; display: flex; flex-direction: column; justify-content: flex-end; height: var(--ct-area); }
+.ct-row { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--ct-spd) ease; }
+.ct-row.on { grid-template-rows: 1fr; }
+.ct-row > div { overflow: hidden; padding: 4px 4px 24px; }
+.ct-bub {
+  position: relative; margin: 0 auto; max-width: var(--ct-bubw); word-break: keep-all; padding: 11px 15px;
+  background: var(--ct-bubble); border: 1px solid var(--ct-ink); border-radius: var(--ct-radius); opacity: 0;
+  transform: translateY(8px) scale(.9);
+  transition: transform var(--ct-spd) cubic-bezier(.34, 1.5, .64, 1), opacity var(--ct-spd);
+}
+.ct-bub::after {
+  content: ''; position: absolute; left: 50%; bottom: calc(var(--ct-tail) / -2 - 1px);
+  width: var(--ct-tail); height: var(--ct-tail); margin-left: calc(var(--ct-tail) / -2);
+  background: var(--ct-bubble); border: 1px solid var(--ct-ink); border-top: 0; border-left: 0;
+  border-radius: 0 0 3px 0; transform: rotate(45deg);
+}
+.ct-row.on .ct-bub { opacity: var(--o, 1); transform: none; }
+.ct-row.out { grid-template-rows: 1fr; transition: none; }
+.ct-row.out .ct-bub { opacity: 0; transform: translateY(-6px) scale(.97); transition: opacity var(--ct-spd) ease, transform var(--ct-spd) ease; }
+.ct-char { display: block; width: var(--ct-char); max-width: 100%; height: auto; cursor: var(--cur-pointer, pointer); user-select: none; }
+@media (prefers-reduced-motion: reduce) { .ct-row, .ct-bub { transition-duration: 0s; } }
