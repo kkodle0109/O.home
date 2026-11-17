@@ -234,8 +234,8 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
       const w: WidgetConf = {
         id, type, col, enabled: true, tx: 0, ty: 0,
         ax: colX[col], ay: maxY,
-        ...(type === 'charbubble' ? { w: 220 } : {}),   // 캐릭터 말풍선은 가로 220px로 시작
         ...(type === 'catcher' || type === 'fishing' ? { w: 320 } : type === 'chartalk' ? { w: 240 } : {}),   // 인형뽑기는 가로 320px로 시작 (세로는 내용에 맞춰 자동)
+        ...(type === 'charbubble' ? { w: 220 } : {}),   // 캐릭터 말풍선은 가로 220px로 시작
         settings: type === 'freetext' ? { text: '자유 텍스트' } : {},
       };
       return { ...s, widgets: [...s.widgets, w], mobileOrder: [...s.mobileOrder, id] };
