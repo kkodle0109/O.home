@@ -25,6 +25,7 @@ import { animClass, animStyle, type WidgetAnim } from '@/lib/widgetAnim';
 import { ImageWindow } from '@/components/main/ImageWindow';
 import { CatcherWidget } from '@/components/main/CatcherWidget';
 import { FishingWidget } from '@/components/main/FishingWidget';
+import { CharTalkWidget } from '@/components/main/CharTalkWidget';
 import {
   Applicant, APPLY_SEED, useCommSettings, badgeStyle, maskName, inTrash,
 } from '@/lib/commStore';
@@ -695,6 +696,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'apply': return <ApplyWidget conf={conf} />;
     case 'catcher': return <CatcherWidget conf={conf} />;
     case 'fishing': return <FishingWidget conf={conf} />;
+    case 'chartalk': return <CharTalkWidget conf={conf} />;
     default: return <div className="panel widget"><h4>{WIDGET_META[conf.type]?.title ?? conf.type}</h4></div>;
   }
 }
