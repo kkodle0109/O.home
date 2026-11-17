@@ -23,6 +23,7 @@ import { BlobImg, useBlobUrl } from '@/lib/blobStore';
 import { normalizeInternalLink } from '@/lib/link';
 import { animClass, animStyle, type WidgetAnim } from '@/lib/widgetAnim';
 import { ImageWindow } from '@/components/main/ImageWindow';
+import { CharBubbleWidget } from '@/components/main/CharBubbleWidget';
 import { CatcherWidget } from '@/components/main/CatcherWidget';
 import { FishingWidget } from '@/components/main/FishingWidget';
 import { CharTalkWidget } from '@/components/main/CharTalkWidget';
@@ -694,6 +695,7 @@ export function renderWidget(conf: WidgetConf) {
     case 'deco': return <DecoWidget conf={conf} />;
     case 'memoboard': return <MemoBoardWidget />;
     case 'apply': return <ApplyWidget conf={conf} />;
+    case 'charbubble': return <CharBubbleWidget conf={conf} />;
     case 'catcher': return <CatcherWidget conf={conf} />;
     case 'fishing': return <FishingWidget conf={conf} />;
     case 'chartalk': return <CharTalkWidget conf={conf} />;
