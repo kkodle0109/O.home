@@ -13,8 +13,7 @@ export type WidgetType =
   | 'dday' | 'todo' | 'upcoming' | 'freetext' | 'deco' | 'memoboard'
   | 'apply'    // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · apply = 커미션 신청자 (v2.0)
   | 'catcher'  // 인형뽑기 — 크레인으로 인형을 뽑으면 갤러리 글 하나가 랜덤으로 나온다
-  | 'chartalk' // 캐릭터 말풍선 — 캐릭터를 누르면 대사가 말풍선으로 뜬다
-  | 'fishing'; // 낚시 연못 — 타이밍 맞춰 낚싯대를 당기면 아이템이 낚이고 도감에 쌓인다
+  | 'charbubble';   // 캐릭터 말풍선 — 캐릭터를 누르면 말풍선이 쌓인다
 
 export interface WidgetConf {
   id: string;
@@ -58,12 +57,11 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
   memoboard: { title: 'STICKY', desc: '스티커 메모 미니보드 — 클릭 시 메모장 (4.6)' },
   apply: { title: 'COMMISSION', desc: '커미션 신청자 — 마감 빠른 순 (몇 명까지 볼지 설정)' },
   catcher: { title: '인형뽑기', desc: '크레인으로 인형을 뽑으면 갤러리 글 하나가 랜덤으로 나옴' },
-  chartalk: { title: '캐릭터 말풍선', desc: '캐릭터를 누르면 대사가 말풍선으로 뜸' },
-  fishing: { title: '낚시 연못', desc: '타이밍 맞춰 낚싯대를 당기는 미니게임 + 수집 도감' },
+  charbubble: { title: '캐릭터', desc: '캐릭터를 누르면 말풍선이 뜸 — 이미지·대사·색 설정' },
 };
 
 /** 같은 종류를 여러 개 추가할 수 있는 위젯 (v1.9 사용자 확정 — 나머지는 하나만) */
-export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
+export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'charbubble'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
 export function widgetLabel(widgets: WidgetConf[], w: WidgetConf): string {
@@ -236,6 +234,7 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
       const w: WidgetConf = {
         id, type, col, enabled: true, tx: 0, ty: 0,
         ax: colX[col], ay: maxY,
+        ...(type === 'charbubble' ? { w: 220 } : {}),   // 캐릭터 말풍선은 가로 220px로 시작
         ...(type === 'catcher' || type === 'fishing' ? { w: 320 } : type === 'chartalk' ? { w: 240 } : {}),   // 인형뽑기는 가로 320px로 시작 (세로는 내용에 맞춰 자동)
         settings: type === 'freetext' ? { text: '자유 텍스트' } : {},
       };
