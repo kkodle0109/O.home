@@ -13,6 +13,7 @@ export type WidgetType =
   | 'dday' | 'todo' | 'upcoming' | 'freetext' | 'deco' | 'memoboard'
   | 'apply'    // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · apply = 커미션 신청자 (v2.0)
   | 'catcher'  // 인형뽑기 — 크레인으로 인형을 뽑으면 갤러리 글 하나가 랜덤으로 나온다
+  | 'chartalk' // 캐릭터 말풍선 — 캐릭터를 누르면 대사가 말풍선으로 뜬다
   | 'fishing'; // 낚시 연못 — 타이밍 맞춰 낚싯대를 당기면 아이템이 낚이고 도감에 쌓인다
 
 export interface WidgetConf {
@@ -57,6 +58,7 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
   memoboard: { title: 'STICKY', desc: '스티커 메모 미니보드 — 클릭 시 메모장 (4.6)' },
   apply: { title: 'COMMISSION', desc: '커미션 신청자 — 마감 빠른 순 (몇 명까지 볼지 설정)' },
   catcher: { title: '인형뽑기', desc: '크레인으로 인형을 뽑으면 갤러리 글 하나가 랜덤으로 나옴' },
+  chartalk: { title: '캐릭터 말풍선', desc: '캐릭터를 누르면 대사가 말풍선으로 뜸' },
   fishing: { title: '낚시 연못', desc: '타이밍 맞춰 낚싯대를 당기는 미니게임 + 수집 도감' },
 };
 
@@ -234,7 +236,7 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
       const w: WidgetConf = {
         id, type, col, enabled: true, tx: 0, ty: 0,
         ax: colX[col], ay: maxY,
-        ...(type === 'catcher' || type === 'fishing' ? { w: 320 } : {}),   // 인형뽑기는 가로 320px로 시작 (세로는 내용에 맞춰 자동)
+        ...(type === 'catcher' || type === 'fishing' ? { w: 320 } : type === 'chartalk' ? { w: 240 } : {}),   // 인형뽑기는 가로 320px로 시작 (세로는 내용에 맞춰 자동)
         settings: type === 'freetext' ? { text: '자유 텍스트' } : {},
       };
       return { ...s, widgets: [...s.widgets, w], mobileOrder: [...s.mobileOrder, id] };
