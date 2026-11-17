@@ -153,12 +153,6 @@ const prizeInputId = 'pcPrizeFiles';
   </p>
 </div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span className="cp-lb">뽑을 글의 말머리</span>
-        <KInput placeholder="비우면 전체 (갤러리 글쓰기의 말머리 이름)" value={d.category ?? ''}
-          onChange={e => setD(v => ({ ...v, category: e.target.value }))} style={{ flex: 1, minWidth: 180 }} />
-      </div>
-
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="cp-lb">기계 색</span>
         <ColorField value={d.color ?? '#a63a45'} onChange={hex => setD(v => ({ ...v, color: hex }))} />
