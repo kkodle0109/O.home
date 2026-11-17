@@ -1,0 +1,62 @@
+/* 갈무리(Galmuri) 픽셀 폰트 — SIL Open Font License 1.1 (설정에서 「픽셀 폰트」를 켠 위젯만 사용) */
+@import url('https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css');
+
+/* ===== 캐릭터 말풍선 위젯 ===== */
+.cb-widget { width: 100%; }
+
+.cb-wrap {
+  --cb-char: 120px; --cb-bubw: 180px; --cb-font: 14px; --cb-area: 210px;
+  --cb-ink: #37324a; --cb-text: #37324a; --cb-bubble: #fff;
+  --cb-radius: 18px; --cb-tail: 14px; --cb-spd: .32s;
+  width: max(var(--cb-char), calc(var(--cb-bubw) + 8px)); max-width: 100%; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; color: var(--cb-text);
+  font-size: var(--cb-font); line-height: 1.8;
+}
+.cb-wrap.pixel { font-family: 'Galmuri14', 'Galmuri11', monospace; }
+.cb-wrap * { box-sizing: border-box; }
+
+/* 말풍선이 쌓이는 자리 — 아래(캐릭터 쪽)부터 채워진다 */
+.cb-bubbles { width: 100%; display: flex; flex-direction: column; justify-content: flex-end; height: var(--cb-area); }
+.cb-row { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--cb-spd) ease; }
+.cb-row.on { grid-template-rows: 1fr; }
+.cb-row > div { overflow: hidden; padding: 4px 4px 24px; }
+
+.cb-bub {
+  position: relative; margin: 0 auto; max-width: var(--cb-bubw); word-break: keep-all; padding: 11px 15px;
+  background: var(--cb-bubble); border: 1px solid var(--cb-ink); border-radius: var(--cb-radius);
+  opacity: 0; transform: translateY(8px) scale(.9);
+  transition: transform var(--cb-spd) cubic-bezier(.34, 1.5, .64, 1), opacity var(--cb-spd);
+}
+/* 말풍선 꼬리 */
+.cb-bub::after {
+  content: ''; position: absolute; left: 50%; bottom: calc(var(--cb-tail) / -2 - 1px);
+  width: var(--cb-tail); height: var(--cb-tail); margin-left: calc(var(--cb-tail) / -2);
+  background: var(--cb-bubble); border: 1px solid var(--cb-ink); border-top: 0; border-left: 0;
+  border-radius: 0 0 3px 0; transform: rotate(45deg);
+}
+.cb-row.on .cb-bub { opacity: var(--o, 1); transform: none; }
+/* 사라질 때는 높이는 그대로 두고 흐려지기만 */
+.cb-row.out { grid-template-rows: 1fr; transition: none; }
+.cb-row.out .cb-bub {
+  opacity: 0; transform: translateY(-6px) scale(.97);
+  transition: opacity var(--cb-spd) ease, transform var(--cb-spd) ease;
+}
+
+.cb-char {
+  display: block; width: var(--cb-char); max-width: 100%; height: auto;
+  cursor: var(--cur-pointer, pointer); user-select: none; -webkit-user-drag: none;
+}
+@media (prefers-reduced-motion: reduce) { .cb-row, .cb-bub { transition-duration: 0s; } }
+
+/* 레트로 테마를 켜 두면 모든 모서리가 직각이 되므로, 말풍선 모서리 설정만은 살린다 */
+.retro-mac .cb-bub { border-radius: var(--cb-radius) !important; }
+
+/* 설정창 — 캐릭터 이미지 미리보기 (투명한 곳이 보이게) */
+.cb-prev {
+  width: 96px; height: 96px; border-radius: 10px; overflow: hidden; flex-shrink: 0;
+  border: 1.5px dashed var(--line); display: grid; place-items: center;
+  background: var(--checker, repeating-conic-gradient(#c8ccd2 0% 25%, #fff 0% 50%)) 0 0 / 12px 12px;
+  cursor: var(--cur-pointer, pointer);
+}
+.cb-prev img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
